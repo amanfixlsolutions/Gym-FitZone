@@ -155,10 +155,10 @@ const Testimonials = () => {
   const maxIndex = totalSlides - slidesToShow;
 
   return (
-    <section id="testimonials" className="py-4 md:py-6 bg-white relative overflow-hidden">
+    <section id="testimonials" className="py-8 md:py-10 bg-white relative overflow-hidden">
       <div className="absolute top-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-amber-100 rounded-full opacity-30 blur-2xl md:blur-3xl"></div>
       <div className="container mx-auto px-3 md:px-4">
-        <div className="text-center max-w-2xl mx-auto mb-4 md:mb-6">
+        <div className="text-center max-w-2xl mx-auto mb-5 md:mb-7">
           <span className="text-amber-500 font-semibold text-xs md:text-sm uppercase tracking-wider animate-fade-up">Testimonials</span>
           <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mt-1 md:mt-2 animate-fade-up delay-100">
             Success <span className="text-amber-500 gradient-text-animate">Stories</span>

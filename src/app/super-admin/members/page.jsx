@@ -48,13 +48,25 @@ export default function Page() {
     e.preventDefault();
     if (!form.name || !form.email || !form.phone || !form.gym) return;
     setSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    setMembers(p => [{
-      id: `M${1000 + p.length + 1}`,
-      name: form.name, email: form.email, phone: form.phone,
-      gym: form.gym, plan: form.plan, status: "Active",
-      joined: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-    }, ...p]);
+    try {
+      // Try real API first
+      const { memberAPI } = await import("@/lib/api");
+      const res = await memberAPI.create({ ...form, age: form.age ? parseInt(form.age) : undefined });
+      setMembers(p => [{
+        id: res.data._id,
+        name: res.data.name, email: res.data.email, phone: res.data.phone,
+        gym: form.gym, plan: res.data.planName || form.plan, status: "Active",
+        joined: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      }, ...p]);
+    } catch {
+      // Fallback: add to local state only
+      setMembers(p => [{
+        id: `M${1000 + p.length + 1}`,
+        name: form.name, email: form.email, phone: form.phone,
+        gym: form.gym, plan: form.plan, status: "Active",
+        joined: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      }, ...p]);
+    }
     setSaving(false);
     setSuccess(true);
     setTimeout(() => { setSuccess(false); setShowModal(false); setForm(EMPTY); }, 1200);

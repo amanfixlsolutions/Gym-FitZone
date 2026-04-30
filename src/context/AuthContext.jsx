@@ -1,32 +1,152 @@
 "use client";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { authAPI } from "@/lib/api";
 
 const AuthContext = createContext();
 
+// ── Token storage ──────────────────────────────────────────────────
+const TOKEN_KEY = "fitzone_token";
+const USER_KEY  = "fitzone_user";
+
+export const saveToken   = (t) => { if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, t); };
+export const getToken    = ()  => { if (typeof window === "undefined") return null; return localStorage.getItem(TOKEN_KEY); };
+export const removeToken = ()  => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("fitzone_refresh");
+    localStorage.removeItem(USER_KEY);
+  }
+};
+
+// ── Normalize user — flatten gym object to primitive strings ───────
+// Backend populates gym as {_id, name, city, status, logo}
+// React cannot render objects as children, so we extract the fields
+const normalizeUser = (userData) => {
+  if (!userData) return null;
+  const u = { ...userData };
+  if (u.gym && typeof u.gym === "object") {
+    u.gymId   = String(u.gym._id   || "");
+    u.gymName = String(u.gym.name  || "");
+    u.gymCity = String(u.gym.city  || "");
+    u.gym     = String(u.gym._id   || ""); // keep as ID string
+  }
+  return u;
+};
+
+const saveUser = (userData) => {
+  const normalized = normalizeUser(userData);
+  if (normalized) localStorage.setItem(USER_KEY, JSON.stringify(normalized));
+  return normalized;
+};
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user,   setUser]   = useState(null);
   const [loaded, setLoaded] = useState(false);
 
+  // ── Restore session on mount ───────────────────────────────────
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("fitzone_user");
-      if (saved) setUser(JSON.parse(saved));
-    } catch (_) {}
-    setLoaded(true);
+    const restore = async () => {
+      // Clear stale cache if gym is still an object (old format)
+      try {
+        const cached = localStorage.getItem(USER_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.gym && typeof parsed.gym === "object") {
+            // Old format — clear it, will re-fetch from backend
+            localStorage.removeItem(USER_KEY);
+          } else {
+            setUser(parsed);
+          }
+        }
+      } catch {}
+
+      const token = getToken();
+
+      const tryRefresh = async () => {
+        const refreshTok = localStorage.getItem("fitzone_refresh");
+        if (!refreshTok) return false;
+        try {
+          const refreshData = await authAPI.refreshToken();
+          if (refreshData.accessToken) saveToken(refreshData.accessToken);
+          const meData = await authAPI.getMe();
+          const normalized = saveUser(meData.user);
+          setUser(normalized);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      if (!token) {
+        const ok = await tryRefresh();
+        if (!ok) { removeToken(); setUser(null); }
+        setLoaded(true);
+        return;
+      }
+
+      try {
+        const data = await authAPI.getMe();
+        const normalized = saveUser(data.user);
+        setUser(normalized);
+      } catch {
+        // Access token expired — try refresh
+        const ok = await tryRefresh();
+        if (!ok) { removeToken(); setUser(null); }
+      } finally {
+        setLoaded(true);
+      }
+    };
+
+    restore();
   }, []);
 
-  const loginUser = (data) => {
-    setUser(data);
-    localStorage.setItem("fitzone_user", JSON.stringify(data));
-  };
+  // ── Login ──────────────────────────────────────────────────────
+  const loginUser = useCallback(async (email, password) => {
+    const data = await authAPI.login(email, password);
 
-  const logoutUser = () => {
+    if (data.accessToken) {
+      saveToken(data.accessToken);
+      if (data.refreshToken) localStorage.setItem("fitzone_refresh", data.refreshToken);
+    }
+
+    // Login response has gym as ObjectId string (not populated)
+    // Call getMe to get the populated version
+    let userData = data.user;
+    try {
+      const meData = await authAPI.getMe();
+      userData = meData.user;
+    } catch {}
+
+    const normalized = saveUser(userData);
+    setUser(normalized);
+    return normalized;
+  }, []);
+
+  // ── Logout ─────────────────────────────────────────────────────
+  const logoutUser = useCallback(async () => {
+    try { await authAPI.logout(); } catch {}
+    removeToken();
     setUser(null);
-    localStorage.removeItem("fitzone_user");
-  };
+  }, []);
+
+  // ── Silent refresh ─────────────────────────────────────────────
+  const refreshSession = useCallback(async () => {
+    try {
+      const data = await authAPI.refreshToken();
+      if (data.accessToken) saveToken(data.accessToken);
+      const me = await authAPI.getMe();
+      const normalized = saveUser(me.user);
+      setUser(normalized);
+      return true;
+    } catch {
+      removeToken();
+      setUser(null);
+      return false;
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loginUser, logoutUser, loaded }}>
+    <AuthContext.Provider value={{ user, loaded, loginUser, logoutUser, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );

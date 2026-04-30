@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Star, 
-  ArrowRight, 
   ChevronLeft, 
   ChevronRight, 
   Award, 
@@ -18,6 +17,7 @@ const Trainers = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
   const autoSlideInterval = useRef(null);
 
   const trainers = [
@@ -129,7 +129,6 @@ const Trainers = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Auto-slide functionality
   useEffect(() => {
     startAutoSlide();
     return () => stopAutoSlide();
@@ -169,7 +168,7 @@ const Trainers = () => {
     }
     autoSlideInterval.current = setInterval(() => {
       nextSlide();
-    }, 2500); // 2.5 seconds
+    }, 2500);
   };
 
   const stopAutoSlide = () => {
@@ -202,15 +201,15 @@ const Trainers = () => {
 
   return (
     <>
-      <section id="trainers" className="py-4 md:py-6 bg-white overflow-hidden">
+      <section id="trainers" className="py-6 md:py-10 bg-white overflow-hidden">
         <div className="container mx-auto px-3 md:px-4">
-          <div className="text-center max-w-2xl mx-auto mb-4 md:mb-6">
+          <div className="text-center max-w-2xl mx-auto mb-5 md:mb-7">
             <span className="text-amber-500 font-semibold text-xs md:text-sm uppercase tracking-wider inline-block">Meet Our Team</span>
             <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mt-1 md:mt-2">
               Meet Our <span className="text-amber-500">Expert Trainers</span>
             </h2>
             <div className="w-12 md:w-16 h-0.5 bg-amber-500 mx-auto mt-2 md:mt-3"></div>
-            <p className="text-black text-xs md:text-sm mt-2 md:mt-3">Learn from the best certified fitness professionals in the industry.</p>
+            <p className="text-black text-xs md:text-sm mt-1 md:mt-3">Learn from the best certified fitness professionals in the industry.</p>
           </div>
 
           {/* Slider Box */}
@@ -228,9 +227,13 @@ const Trainers = () => {
                     key={index}
                     className="flex-shrink-0 px-1.5 md:px-2"
                     style={{ width: `${100 / slidesToShow}%` }}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
                   >
                     <div 
-                      className="bg-gradient-to-br from-amber-50 to-white rounded-xl md:rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer h-full trainer-card"
+                      className={`bg-gradient-to-br from-amber-50 to-white rounded-xl md:rounded-2xl overflow-hidden shadow-md transition-all duration-300 cursor-pointer h-full ${
+                        hoveredIndex === index ? 'scale-105 shadow-xl' : ''
+                      }`}
                       onClick={() => openTrainerDetails(trainer)}
                     >
                       {/* Image */}
@@ -239,9 +242,13 @@ const Trainers = () => {
                           <img
                             src={trainer.image}
                             alt={trainer.name}
-                            className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500"
+                            className={`absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 ${
+                              hoveredIndex === index ? 'scale-110' : ''
+                            }`}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className={`absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent transition-opacity duration-300 ${
+                            hoveredIndex === index ? 'opacity-100' : 'opacity-0'
+                          }`}></div>
                         </div>
                         
                         {/* Rating Badge */}
@@ -263,7 +270,9 @@ const Trainers = () => {
 
                       {/* Content */}
                       <div className="p-2.5 md:p-3">
-                        <h3 className="text-xs md:text-sm font-bold text-black hover:text-amber-600 transition-colors truncate">
+                        <h3 className={`text-xs md:text-sm font-bold transition-colors truncate ${
+                          hoveredIndex === index ? 'text-amber-600' : 'text-black'
+                        }`}>
                           {trainer.name}
                         </h3>
                         <p className="text-[9px] md:text-[10px] text-black font-medium mt-0.5">{trainer.role}</p>
@@ -276,25 +285,25 @@ const Trainers = () => {
                           </span>
                         </div>
 
-                        {/* Social Icons with react-icons */}
+                        {/* Social Icons */}
                         <div className="flex gap-1.5 md:gap-2 justify-center mt-2 md:mt-3">
                           <button 
                             onClick={(e) => openSocialLink(trainer.facebook, e)}
-                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white transition-all duration-300 hover:scale-110 text-amber-600"
+                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white hover:scale-110 text-amber-600"
                             aria-label="Facebook"
                           >
                             <FaFacebook className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />
                           </button>
                           <button 
                             onClick={(e) => openSocialLink(trainer.instagram, e)}
-                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white transition-all duration-300 hover:scale-110 text-amber-600"
+                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white hover:scale-110 text-amber-600"
                             aria-label="Instagram"
                           >
                             <FaInstagram className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />
                           </button>
                           <button 
                             onClick={(e) => openSocialLink(trainer.twitter, e)}
-                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white transition-all duration-300 hover:scale-110 text-amber-600"
+                            className="w-5 h-5 md:w-7 md:h-7 bg-amber-100 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white hover:scale-110 text-amber-600"
                             aria-label="Twitter"
                           >
                             <FaTwitter className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />
@@ -501,27 +510,6 @@ const Trainers = () => {
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .group:hover .group-hover\\:opacity-100 {
-          opacity: 1;
-        }
-        
-        /* Fix hover effect - only the hovered card scales */
-        .trainer-card {
-          transition: all 0.3s ease;
-        }
-        
-        .trainer-card:hover {
-          transform: scale(1.02);
-          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
-        
-        /* Remove the global scale effect from parent container */
-        .flex-shrink-0:hover {
-          z-index: 10;
-        }
-      `}</style>
     </>
   );
 };

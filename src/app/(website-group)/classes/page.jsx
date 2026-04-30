@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from "react";
 import { Zap, Clock, ArrowRight, ChevronLeft, ChevronRight, Star, Filter } from "lucide-react";
 
@@ -42,8 +42,6 @@ export default function ClassesPage() {
 
   return (
     <div className="bg-white">
-
-      {/* ── SECTION 1: Hero ── */}
       <section className="min-h-screen flex flex-col justify-center bg-gradient-to-br from-amber-50 to-orange-50 pt-16">
         <div className="container mx-auto px-4 py-10">
           <div className="text-center mb-8">
@@ -51,23 +49,12 @@ export default function ClassesPage() {
               <Zap className="w-4 h-4 text-amber-500" />
               <span className="text-amber-700 font-semibold text-sm uppercase tracking-wide">Our Programs</span>
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-3">
-              Popular <span className="text-amber-500">Classes</span>
-            </h1>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-3">Popular <span className="text-amber-500">Classes</span></h1>
             <div className="w-16 h-0.5 bg-amber-500 mx-auto mb-4" />
-            <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto">
-              Find the perfect class for your fitness journey. Expert-led sessions for all levels.
-            </p>
+            <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto">Find the perfect class for your fitness journey. Expert-led sessions for all levels.</p>
           </div>
-
-          {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-            {[
-              { val: "9+", label: "Classes Available" },
-              { val: "30+", label: "Expert Trainers" },
-              { val: "5K+", label: "Active Members" },
-              { val: "24/7", label: "Gym Access" },
-            ].map((s, i) => (
+            {[{ val: "9+", label: "Classes Available" }, { val: "30+", label: "Expert Trainers" }, { val: "5K+", label: "Active Members" }, { val: "24/7", label: "Gym Access" }].map((s, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 text-center shadow-md border border-amber-100">
                 <p className="text-2xl md:text-3xl font-bold text-amber-500">{s.val}</p>
                 <p className="text-xs text-gray-500 mt-1">{s.label}</p>
@@ -77,22 +64,15 @@ export default function ClassesPage() {
         </div>
       </section>
 
-      {/* ── SECTION 2: Featured Slider ── */}
       <section className="min-h-screen flex flex-col justify-center bg-white py-10">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
-              Featured <span className="text-amber-500">Classes</span>
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Featured <span className="text-amber-500">Classes</span></h2>
             <div className="w-12 h-0.5 bg-amber-500 mx-auto mt-2" />
           </div>
-
           <div className="relative group">
             <div className="overflow-hidden rounded-xl">
-              <div
-                className="flex transition-transform duration-500 ease-out"
-                style={{ transform: `translateX(-${currentSlide * (100 / slidesToShow)}%)` }}
-              >
+              <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${currentSlide * (100 / slidesToShow)}%)` }}>
                 {classes.map((cls, i) => (
                   <div key={i} className="flex-shrink-0 px-2" style={{ width: `${100 / slidesToShow}%` }}>
                     <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
@@ -104,46 +84,30 @@ export default function ClassesPage() {
                         <div className="absolute bottom-3 right-3 bg-black/70 px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1"><Clock className="w-3 h-3" />{cls.time}</div>
                       </div>
                       <div className="p-4">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                          <span className="text-sm font-semibold text-gray-700">{cls.rating}</span>
-                          <span className="text-xs text-gray-400">(895 reviews)</span>
-                        </div>
+                        <div className="flex items-center gap-1 mb-1"><Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" /><span className="text-sm font-semibold text-gray-700">{cls.rating}</span><span className="text-xs text-gray-400">(895 reviews)</span></div>
                         <h3 className="text-base font-bold text-gray-800 mb-0.5">{cls.name}</h3>
                         <p className="text-xs text-gray-500 mb-2">{cls.trainer}</p>
-                        <p className="text-xs text-black mb-3 line-clamp-2">{cls.description}</p>
-                        <button className="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
-                          Register Now <ArrowRight className="w-4 h-4" />
-                        </button>
+                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{cls.description}</p>
+                        <button className="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">Register Now <ArrowRight className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            {!isMobile && (
-              <>
-                <button onClick={() => setCurrentSlide(p => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button onClick={() => setCurrentSlide(p => Math.min(maxSlide, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </>
-            )}
+            {!isMobile && (<>
+              <button onClick={() => setCurrentSlide(p => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={() => setCurrentSlide(p => Math.min(maxSlide, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronRight className="w-5 h-5" /></button>
+            </>)}
           </div>
-
           <div className="flex justify-center gap-2 mt-5">
             {Array.from({ length: maxSlide + 1 }).map((_, i) => (
-              <button key={i} onClick={() => setCurrentSlide(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "w-6 bg-amber-500" : "w-2 bg-gray-300 hover:bg-amber-300"}`} />
+              <button key={i} onClick={() => setCurrentSlide(i)} className={`h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "w-6 bg-amber-500" : "w-2 bg-gray-300 hover:bg-amber-300"}`} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── SECTION 3: All Classes ── */}
       <section className="min-h-screen flex flex-col justify-center bg-gradient-to-br from-amber-50 to-white py-10">
         <div className="container mx-auto px-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -152,17 +116,11 @@ export default function ClassesPage() {
               <Filter className="w-4 h-4 text-amber-500" />
               {LEVELS.map(l => (
                 <button key={l} onClick={() => { setFilter(l); setPage(1); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${filter === l ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md" : "bg-white border border-amber-200 text-gray-600 hover:border-amber-500 hover:text-amber-600"}`}>
-                  {l}
-                </button>
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${filter === l ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md" : "bg-white border border-amber-200 text-gray-600 hover:border-amber-500 hover:text-amber-600"}`}>{l}</button>
               ))}
             </div>
-          </div>  
-
-          <p className="text-xs text-gray-400 mb-4">
-            Showing {paged.length} of {filtered.length} classes{filter !== "All" ? ` · ${filter}` : ""}
-          </p>
-
+          </div>
+          <p className="text-xs text-gray-400 mb-4">Showing {paged.length} of {filtered.length} classes{filter !== "All" ? ` · ${filter}` : ""}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {paged.map((cls) => (
               <div key={cls.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
@@ -174,48 +132,28 @@ export default function ClassesPage() {
                   <div className="absolute bottom-3 right-3 bg-black/70 px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1"><Clock className="w-3 h-3" />{cls.time}</div>
                 </div>
                 <div className="p-4">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                    <span className="text-sm font-semibold text-gray-700">{cls.rating}</span>
-                    <span className="text-xs text-gray-400">(895 reviews)</span>
-                  </div>
+                  <div className="flex items-center gap-1 mb-1"><Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" /><span className="text-sm font-semibold text-gray-700">{cls.rating}</span><span className="text-xs text-gray-400">(895 reviews)</span></div>
                   <h3 className="text-base font-bold text-gray-800 mb-0.5">{cls.name}</h3>
                   <p className="text-xs text-gray-500 mb-1">{cls.trainer}</p>
                   <p className="text-xs text-amber-600 font-medium mb-2">📅 {cls.schedule}</p>
-                  <p className="text-xs text-black mb-3 line-clamp-2">{cls.description}</p>
-                  <div className="flex items-center justify-between text-xs text-black mb-3">
-                    <span>🔥 {cls.calories}</span>
-                    <span>⚡ {cls.intensity}</span>
-                  </div>
-                  <button className="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
-                    Register Now <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <p className="text-xs text-gray-600 mb-3 line-clamp-2">{cls.description}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3"><span>🔥 {cls.calories}</span><span>⚡ {cls.intensity}</span></div>
+                  <button className="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">Register Now <ArrowRight className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
           </div>
-
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="w-9 h-9 flex items-center justify-center rounded-full border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="w-9 h-9 flex items-center justify-center rounded-full border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"><ChevronLeft className="w-4 h-4" /></button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-bold transition-all duration-200 ${page === p ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md" : "border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white"}`}>
-                  {p}
-                </button>
+                <button key={p} onClick={() => setPage(p)} className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-bold transition-all duration-200 ${page === p ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md" : "border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white"}`}>{p}</button>
               ))}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="w-9 h-9 flex items-center justify-center rounded-full border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200">
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-9 h-9 flex items-center justify-center rounded-full border border-amber-200 text-gray-600 hover:bg-amber-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"><ChevronRight className="w-4 h-4" /></button>
             </div>
           )}
         </div>
       </section>
-
       <style>{`.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}`}</style>
     </div>
   );

@@ -11,12 +11,23 @@ const Features = () => {
   // Check for mobile screen
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
+      setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Auto-slide timer for mobile
+  useEffect(() => {
+    if (!isMobile) return;
+    
+    const interval = setInterval(() => {
+      setActiveImage((prev) => (prev + 1) % featureImages.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isMobile]);
 
   // Images for each card
   const featureImages = [
@@ -80,18 +91,6 @@ const Features = () => {
     }
   };
 
-  const handleCardClick = (index) => {
-    setActiveImage(features[index].imageIndex);
-    setHoveredCard(index);
-    // Scroll to image on mobile for better UX
-    if (isMobile) {
-      const imageElement = document.getElementById('feature-image-section');
-      if (imageElement) {
-        imageElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  };
-
   const handleCardLeave = () => {
     if (!isMobile) {
       setHoveredCard(null);
@@ -100,81 +99,71 @@ const Features = () => {
 
   const nextImage = () => {
     setActiveImage((prev) => (prev + 1) % featureImages.length);
-    setHoveredCard((prev) => {
-      const newIndex = (activeImage + 1) % featureImages.length;
-      return newIndex;
-    });
   };
 
   const prevImage = () => {
     setActiveImage((prev) => (prev - 1 + featureImages.length) % featureImages.length);
-    setHoveredCard((prev) => {
-      const newIndex = (activeImage - 1 + featureImages.length) % featureImages.length;
-      return newIndex;
-    });
   };
 
   return (
-    <section id="features" className="py-8 md:py-10 bg-white relative overflow-hidden">
+    <section id="features" className="py-8 md:py-12 bg-white relative overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 md:gap-10 max-w-6xl mx-auto">
+        <div className="flex flex-col lg:flex-row items-start gap-8 lg:gap-12 max-w-7xl mx-auto">
           {/* Left Side - Content */}
-          <div className="flex-1 w-full">
-            <div className="mb-6 md:mb-8 text-center lg:text-left">
-              <span className="text-amber-500 font-semibold text-xs md:text-sm uppercase tracking-wider animate-fade-up inline-block">Why Choose Us</span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mt-2 animate-fade-up delay-100">
+          <div className="w-full lg:flex-1">
+            <div className="mb-6 text-center lg:text-left">
+              <span className="text-amber-500 font-semibold text-sm uppercase tracking-wider animate-fade-up inline-block">Why Choose Us</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2 animate-fade-up delay-100">
                 Why Choose <span className="text-amber-500">FitZone?</span>
               </h2>
-              <p className="text-gray-600 text-sm sm:text-base mt-3 md:mt-4 animate-fade-up delay-200">
+              <p className="text-gray-600 text-base mt-3 animate-fade-up delay-200 max-w-lg mx-auto lg:mx-0">
                 When picking a gym, consider its amenities like guest access, hours, location, and extra benefits to enhance your experience.
               </p>
             </div>
 
-            {/* Features Grid - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 animate-fade-up delay-300">
+            {/* Features Grid - Desktop */}
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-up delay-300 ${isMobile ? 'hidden' : 'grid'}`}>
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className={`group bg-gray-50/50 p-4 md:p-5 rounded-xl transition-all duration-200 cursor-pointer border ${
+                  className={`group bg-gray-50/50 p-4 rounded-xl transition-all duration-200 cursor-pointer border ${
                     hoveredCard === index 
                       ? 'shadow-lg -translate-y-1 border-amber-300 bg-amber-50/50' 
                       : 'hover:shadow-lg hover:-translate-y-1 border-gray-100'
-                  } ${isMobile && activeImage === features[index].imageIndex ? 'ring-2 ring-amber-500' : ''}`}
+                  }`}
                   onMouseEnter={() => handleCardHover(index)}
                   onMouseLeave={handleCardLeave}
-                  onClick={() => handleCardClick(index)}
                 >
-                  <div className={`bg-gradient-to-r ${feature.gradient} w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-white transition-all duration-200 ${
+                  <div className={`bg-gradient-to-r ${feature.gradient} w-10 h-10 rounded-lg flex items-center justify-center text-white transition-all duration-200 ${
                     hoveredCard === index ? 'rotate-6 scale-110' : ''
                   }`}>
                     {feature.icon}
                   </div>
-                  <h3 className={`text-base md:text-lg font-bold mt-2 md:mt-3 transition-colors duration-200 ${
+                  <h3 className={`text-base font-bold mt-3 transition-colors duration-200 ${
                     hoveredCard === index ? 'text-amber-600' : 'text-gray-800 group-hover:text-amber-600'
                   }`}>
                     {feature.title}
                   </h3>
-                  <p className="text-black text-xs sm:text-sm mt-1 md:mt-2 leading-relaxed line-clamp-2 md:line-clamp-none">
-                    {feature.description}
+                  <p className="text-black text-xs mt-2 leading-relaxed line-clamp-3">
+                    {feature.description} 
                   </p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right Side - Responsive Image Section */}
-          <div id="feature-image-section" className="flex-1 w-full mt-6 lg:mt-0 animate-fade-up delay-200">
+          {/* Right Side - Image Section */}
+          <div className={`${isMobile ? 'w-full' : 'lg:flex-1'} w-full mt-8 lg:mt-0 animate-fade-up delay-200`}>
             <div className="relative rounded-2xl overflow-hidden shadow-xl">
               {/* Main Image Container */}
-              <div className="relative w-full h-[280px] sm:h-[350px] md:h-[400px] lg:h-[450px] overflow-hidden rounded-2xl">
+              <div className="relative w-full h-[280px] sm:h-[350px] md:h-[400px] lg:h-[420px] overflow-hidden rounded-2xl">
                 {featureImages.map((img, idx) => (
                   <div
                     key={idx}
-                    className="absolute inset-0 rounded-2xl"
+                    className="absolute inset-0 rounded-2xl transition-opacity duration-500 ease-in-out"
                     style={{
                       zIndex: activeImage === idx ? 10 : 0,
                       opacity: activeImage === idx ? 1 : 0,
-                      transition: 'none'
                     }}
                   >
                     <img
@@ -220,7 +209,6 @@ const Features = () => {
                     key={idx}
                     onClick={() => {
                       setActiveImage(idx);
-                      setHoveredCard(idx);
                     }}
                     className={`h-1.5 md:h-2 rounded-full transition-all duration-150 ${
                       activeImage === idx 
@@ -232,28 +220,26 @@ const Features = () => {
               </div>
             </div>
 
-            {/* Active Feature Title Display - Mobile Friendly */}
-            <div className="text-center mt-3 md:mt-4">
-              <p className="text-xs sm:text-sm text-gray-500">
-                {isMobile ? 'Showing: ' : 'Currently showing: '}
-                <span className="text-amber-600 font-semibold">{features[activeImage]?.title}</span>
-              </p>
-              {isMobile && (
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Tap on any card above to change the image
+            {/* Mobile Title Display */}
+            {isMobile && (
+              <div className="text-center mt-4">
+                <h3 className="text-lg font-bold text-gray-800">
+                  {features[activeImage]?.title}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {features[activeImage]?.description}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Responsive Styles */}
       <style jsx>{`
-        @media (max-width: 768px) {
-          .line-clamp-2 {
+        @media (min-width: 1024px) {
+          .line-clamp-3 {
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
           }

@@ -113,7 +113,6 @@ const Classes = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Auto-slide functionality
   useEffect(() => {
     startAutoSlide();
     return () => stopAutoSlide();
@@ -153,7 +152,7 @@ const Classes = () => {
     }
     autoSlideInterval.current = setInterval(() => {
       nextSlide();
-    }, 2500); // 2.5 seconds
+    }, 2500);
   };
 
   const stopAutoSlide = () => {
@@ -170,10 +169,10 @@ const Classes = () => {
   };
 
   return (
-    <section id="classes" className="py-8 md:py-12 bg-gradient-to-br from-amber-50 to-white">
-      <div className="container mx-auto px-3 md:px-4">
+    <section id="classes" className="py-8 md:py-10 bg-gradient-to-br from-amber-50 to-white">
+      <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
-        <div className="text-center mb-6 md:mb-8">
+        <div className="text-center mb-5 md:mb-7">
           <div className="inline-flex items-center gap-2 bg-amber-100 px-3 py-1.5 rounded-full mb-3">
             <Zap className="w-3.5 h-3.5 text-amber-500" />
             <span className="text-amber-700 font-semibold text-xs uppercase">Our Programs</span>
@@ -182,10 +181,10 @@ const Classes = () => {
             Popular <span className="text-amber-500">Classes</span>
           </h2>
           <div className="w-16 h-0.5 bg-amber-500 mx-auto mt-3"></div>
-          <p className="text-gray-600 text-sm mt-3">Find the perfect class for your fitness journey</p>
+          <p className="text-gray-600 text-sm mt-2">Find the perfect class for your fitness journey</p>
         </div>
 
-        {/* Slider Box - Like Amazon */}
+        {/* Slider Box */}
         <div className="relative group">
           {/* Cards Slider Container */}
           <div className="overflow-hidden rounded-xl">
@@ -198,7 +197,7 @@ const Classes = () => {
               {classes.map((classItem, index) => (
                 <div
                   key={index}
-                  className="flex-shrink-0 px-1.5 md:px-2"
+                  className="flex-shrink-0 px-2"
                   style={{ width: `${100 / slidesToShow}%` }}
                 >
                   <div className="bg-white rounded-xl md:rounded-2xl overflow-hidden shadow-md transition-all duration-300 h-full class-card">
@@ -212,42 +211,42 @@ const Classes = () => {
                       <div className={`absolute inset-0 bg-gradient-to-t ${classItem.color} opacity-40`}></div>
                       
                       {/* Level Badge */}
-                      <div className={`absolute top-2 right-2 md:top-3 md:right-3 bg-gradient-to-r ${classItem.color} px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[9px] md:text-xs font-bold text-white shadow-md z-10`}>
+                      <div className={`absolute top-2 right-2 md:top-3 md:right-3 bg-gradient-to-r ${classItem.color} px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[10px] md:text-xs font-bold text-white shadow-md z-10`}>
                         {classItem.icon} {classItem.level}
                       </div>
 
                       {/* Spots Badge */}
-                      <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3 bg-black/70 backdrop-blur-sm px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[9px] md:text-[11px] font-bold text-white z-10">
+                      <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3 bg-black/70 backdrop-blur-sm px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[10px] md:text-[11px] font-bold text-white z-10">
                         {classItem.spots}
                       </div>
 
                       {/* Duration Badge */}
-                      <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 bg-black/70 backdrop-blur-sm px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[9px] md:text-[11px] font-bold text-white flex items-center gap-1 z-10">
+                      <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 bg-black/70 backdrop-blur-sm px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg text-[10px] md:text-[11px] font-bold text-white flex items-center gap-1 z-10">
                         <Clock className="w-2 h-2 md:w-3 md:h-3" />
                         {classItem.time}
                       </div>
                     </div>
 
                     {/* Content */}
-                    <div className="p-2.5 md:p-4">
+                    <div className="p-3 md:p-4">
                       {/* Rating */}
                       <div className="flex items-center gap-0.5 md:gap-1 mb-1 md:mb-2">
                         <Star className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 fill-amber-500 text-amber-500" />
                         <span className="text-[10px] md:text-sm font-semibold text-gray-800">{classItem.rating}</span>
-                        <span className="text-[8px] md:text-xs text-black">(895 reviews)</span>
+                        <span className="text-[8px] md:text-xs text-gray-500">(895 reviews)</span>
                       </div>
 
                       {/* Title */}
-                      <h3 className="text-sm md:text-lg font-bold text-black mb-0.5 md:mb-1">{classItem.name}</h3>
-                      <p className="text-[9px] md:text-xs text-black mb-2 md:mb-3">{classItem.trainer}</p>
+                      <h3 className="text-sm md:text-lg font-bold text-gray-800 mb-0.5 md:mb-1">{classItem.name}</h3>
+                      <p className="text-[9px] md:text-xs text-gray-600 mb-2 md:mb-3">{classItem.trainer}</p>
 
                       {/* Description */}
-                      <p className="text-[10px] md:text-sm text-black mb-2 md:mb-3 line-clamp-2">
+                      <p className="text-[10px] md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
                         {classItem.description} • {classItem.calories} • {classItem.reps}
                       </p>
 
                       {/* Book Button */}
-                      <button className="w-full py-1.5 md:py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] md:text-sm font-semibold rounded-lg md:rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-1 md:gap-2">
+                      <button className="w-full py-1.5 md:py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] md:text-sm font-semibold rounded-lg md:rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-1 md:gap-2">
                         <span>Register Now</span>
                         <ArrowRight className="w-2.5 h-2.5 md:w-4 md:h-4" />
                       </button>
@@ -258,7 +257,7 @@ const Classes = () => {
             </div>
           </div>
 
-          {/* Navigation Arrows - Inside the slider box, on hover like Amazon */}
+          {/* Navigation Arrows - Desktop */}
           {!isMobile && (
             <>
               <button
@@ -278,8 +277,21 @@ const Classes = () => {
           )}
         </div>
 
+        {/* Desktop Dots - Fixed inside section */}
+        <div className="hidden md:flex justify-center gap-2 mt-6 mb-2">
+          {Array.from({ length: maxIndex + 1 }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleManualNavigation(() => goToSlide(index))}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                currentIndex === index ? 'w-6 bg-amber-500' : 'w-2 bg-gray-300 hover:bg-amber-300'
+              }`}
+            />
+          ))}
+        </div>
+
         {/* Mobile Navigation Arrows & Dots */}
-        <div className="mt-6 md:mt-8 md:hidden">
+        <div className="mt-6 md:hidden">
           <div className="flex justify-center items-center gap-3">
             <button
               onClick={() => handleManualNavigation(prevSlide)}
@@ -309,19 +321,6 @@ const Classes = () => {
             </button>
           </div>
         </div>
-
-        {/* Desktop Dots */}
-        <div className="hidden md:flex justify-center gap-2 mt-6">
-          {Array.from({ length: maxIndex + 1 }).map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleManualNavigation(() => goToSlide(index))}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                currentIndex === index ? 'w-6 bg-amber-500' : 'w-2 bg-gray-300 hover:bg-amber-300'
-              }`}
-            />
-          ))}
-        </div>
       </div>
 
       <style jsx>{`
@@ -332,7 +331,6 @@ const Classes = () => {
           overflow: hidden;
         }
         
-        /* Fix hover effect - only the hovered card scales */
         .class-card {
           transition: all 0.3s ease;
         }
@@ -342,7 +340,6 @@ const Classes = () => {
           box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
         }
         
-        /* Remove the global scale effect from parent container */
         .flex-shrink-0:hover {
           z-index: 10;
         }

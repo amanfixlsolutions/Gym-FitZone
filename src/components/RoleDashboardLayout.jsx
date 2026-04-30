@@ -1,29 +1,30 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Menu, X, ChevronDown, Sun, Moon, Bell,
   Search, LogOut, Settings, Download, Calendar, Dumbbell,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function RoleDashboardLayout({
   children, title, navItems, role,
-  userName, userEmail, userAvatar,
+  userName: _userName, userEmail: _userEmail, userAvatar: _userAvatar,
 }) {
   const pathname = usePathname();
+  const router   = useRouter();
   const { dark, toggle } = useTheme();
+  const { user, logoutUser, loaded } = useAuth();
 
-  // Desktop sidebar: collapsed = icon-only
+  // ── ALL hooks must be declared before any conditional return ──
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  // Mobile sidebar: open = slide-in drawer
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const [openMenus, setOpenMenus] = useState({});
-  const [showNotif, setShowNotif] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const notifRef = useRef(null);
+  const [mobileOpen,       setMobileOpen]       = useState(false);
+  const [openMenus,        setOpenMenus]        = useState({});
+  const [showNotif,        setShowNotif]        = useState(false);
+  const [showProfile,      setShowProfile]      = useState(false);
+  const notifRef   = useRef(null);
   const profileRef = useRef(null);
 
   // Auto-open parent dropdown when a child route is active
@@ -49,6 +50,24 @@ export default function RoleDashboardLayout({
 
   // Close mobile drawer on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Route guard — redirect to login if not authenticated
+  useEffect(() => {
+    if (loaded && !user) {
+      router.push("/login");
+    }
+  }, [loaded, user, router]);
+
+  // ── Derived values (after all hooks) ──────────────────────────
+  const userName   = user?.name   || _userName   || "User";
+  const userEmail  = user?.email  || _userEmail  || "";
+  const userAvatar = user?.avatar || _userAvatar
+    || (user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U");
+
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push("/login");
+  };
 
   const toggleMenu = (label) => setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
 
@@ -78,7 +97,18 @@ export default function RoleDashboardLayout({
     label: "Admin",
   };
 
-  // ─── Sidebar inner content (reused for both desktop + mobile) ───
+  // ── Conditional renders AFTER all hooks ───────────────────────
+  if (!loaded) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <span className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  // ─── Sidebar inner content ────────────────────────────────────
   const SidebarContent = ({ collapsed }) => (
     <>
       {/* Logo row */}
@@ -94,14 +124,12 @@ export default function RoleDashboardLayout({
             </span>
           </div>
         )}
-        {/* Desktop collapse toggle - only show on desktop */}
         <button
           onClick={() => setDesktopCollapsed((c) => !c)}
           className={`hidden lg:flex p-1.5 rounded-lg hover:bg-[var(--surface2)] text-[var(--muted)] transition-colors flex-shrink-0 ${collapsed ? "mx-auto" : ""}`}
         >
           {collapsed ? <Menu size={15} /> : <X size={15} />}
         </button>
-        {/* Mobile close - only show on mobile */}
         <button
           onClick={() => setMobileOpen(false)}
           className="lg:hidden p-1.5 rounded-lg hover:bg-[var(--surface2)] text-[var(--muted)] transition-colors ml-auto"
@@ -114,7 +142,7 @@ export default function RoleDashboardLayout({
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
         {navItems.map((item) => {
           const active = isActive(item.href);
-          const open = openMenus[item.label];
+          const open   = openMenus[item.label];
           return (
             <div key={item.label}>
               {item.children ? (
@@ -164,7 +192,8 @@ export default function RoleDashboardLayout({
                         key={child.href}
                         href={child.href}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all
-                          ${ca ? "text-blue-600 bg-blue-50 font-semibold dark:bg-blue-900/30 dark:text-blue-400"
+                          ${ca
+                            ? "text-blue-600 bg-blue-50 font-semibold dark:bg-blue-900/30 dark:text-blue-400"
                             : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"}`}
                       >
                         <child.icon size={14} className="flex-shrink-0" />
@@ -190,14 +219,14 @@ export default function RoleDashboardLayout({
           <Settings size={16} className="flex-shrink-0" />
           {!collapsed && "Settings"}
         </Link>
-        <Link
-          href="/"
-          title={collapsed ? "Switch Role" : undefined}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+        <button
+          onClick={handleLogout}
+          title={collapsed ? "Logout" : undefined}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
         >
           <LogOut size={16} className="flex-shrink-0" />
-          {!collapsed && "Switch Role"}
-        </Link>
+          {!collapsed && "Logout"}
+        </button>
         {!collapsed && (
           <div className={`mt-2 bg-gradient-to-br ${accent.grad} rounded-xl p-4 text-white`}>
             <p className="font-semibold text-sm">FitZone Pro</p>
@@ -250,7 +279,6 @@ export default function RoleDashboardLayout({
         <header className="h-[60px] bg-[var(--surface)] border-b border-[var(--border)]
           flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-20 shadow-sm">
 
-          {/* Mobile hamburger - only visible on mobile/tablet */}
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg
@@ -259,12 +287,10 @@ export default function RoleDashboardLayout({
             <Menu size={20} className="text-[var(--muted)]" />
           </button>
 
-          {/* Page title */}
           <h2 className="text-sm md:text-base font-semibold text-[var(--text)] whitespace-nowrap">
             {title}
           </h2>
 
-          {/* Search bar - responsive sizing */}
           <div className="hidden md:flex flex-1 max-w-md relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted2)]" />
             <input
@@ -278,7 +304,6 @@ export default function RoleDashboardLayout({
 
           <div className="flex-1" />
 
-          {/* Date picker - desktop only */}
           <button className="hidden lg:flex items-center gap-2 text-xs text-[var(--muted)]
             bg-[var(--surface2)] border border-[var(--border)] px-3 py-1.5 rounded-lg
             hover:border-blue-400 hover:bg-[var(--surface3)] transition-all whitespace-nowrap">
@@ -287,14 +312,12 @@ export default function RoleDashboardLayout({
             <ChevronDown size={12} />
           </button>
 
-          {/* Export button */}
           <button className={`hidden sm:flex items-center gap-2 text-xs font-semibold text-white
             ${accent.solid} ${accent.hover} px-3 py-1.5 rounded-lg transition-all shadow-sm whitespace-nowrap`}>
             <Download size={14} />
             <span className="hidden xl:inline">Export</span>
           </button>
 
-          {/* Dark mode toggle */}
           <button
             onClick={toggle}
             className="w-9 h-9 flex items-center justify-center rounded-lg
@@ -313,7 +336,6 @@ export default function RoleDashboardLayout({
               onClick={() => { setShowNotif(v => !v); setShowProfile(false); }}
               className="w-9 h-9 flex items-center justify-center rounded-lg
                 hover:bg-[var(--surface2)] transition-colors relative"
-              aria-label="Notifications"
             >
               <Bell size={18} className="text-[var(--muted)]" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full
@@ -328,9 +350,9 @@ export default function RoleDashboardLayout({
                     dark:text-red-400 font-bold px-2 py-0.5 rounded-full">3 new</span>
                 </div>
                 {[
-                  { dot: "bg-blue-500", t: "New member joined", d: "Rahul Sharma joined your gym", time: "2m" },
-                  { dot: "bg-emerald-500", t: "Payment received", d: "₹2,999 credited", time: "15m" },
-                  { dot: "bg-amber-500", t: "Class reminder", d: "Yoga starts in 30 minutes", time: "30m" },
+                  { dot: "bg-blue-500",   t: "New member joined",  d: "Rahul Sharma joined your gym", time: "2m" },
+                  { dot: "bg-emerald-500",t: "Payment received",   d: "₹2,999 credited",              time: "15m" },
+                  { dot: "bg-amber-500",  t: "Class reminder",     d: "Yoga starts in 30 minutes",    time: "30m" },
                 ].map((n, i) => (
                   <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface2)]
                     cursor-pointer border-b border-[var(--border)] last:border-0 transition-colors">
@@ -387,13 +409,13 @@ export default function RoleDashboardLayout({
                   </Link>
                 </div>
                 <div className="border-t border-[var(--border)] py-1">
-                  <Link
-                    href="/"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500
                       hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
-                    <LogOut size={14} /> Switch Role
-                  </Link>
+                    <LogOut size={14} /> Logout
+                  </button>
                 </div>
               </div>
             )}

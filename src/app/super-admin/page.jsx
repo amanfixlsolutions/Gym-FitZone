@@ -60,7 +60,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {stats.map((s) => <StatCard key={s.title} {...s} />)}
         </div>
 
