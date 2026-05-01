@@ -4,6 +4,7 @@ import RoleDashboardLayout from "@/components/RoleDashboardLayout";
 import { GYM_OWNER_NAV } from "@/lib/gymOwnerNav";
 import { useAuth } from "@/context/AuthContext";
 import { planAPI } from "@/lib/api";
+import { confirmToast, showSuccess, showError } from "@/lib/toast";
 import { ClipboardList, Plus, Edit2, Trash2, Check, X, TrendingUp, RefreshCw, AlertCircle } from "lucide-react";
 
 const colorMap = {
@@ -85,26 +86,31 @@ export default function Page() {
       if (editId) {
         const res = await planAPI.update(editId, payload);
         setPlans(p => p.map(pl => pl._id === editId ? res.data : pl));
+        showSuccess(`"${payload.name}" plan updated successfully!`);
       } else {
         const res = await planAPI.create(payload);
         setPlans(p => [res.data, ...p]);
+        showSuccess(`"${payload.name}" plan created successfully!`);
       }
       setSaving(false); setSuccess(true);
       setTimeout(() => { setSuccess(false); setShowModal(false); setForm(EMPTY_FORM); }, 1400);
     } catch (err) {
       setError(err.message || "Failed to save plan");
+      showError(err.message || "Failed to save plan");
       setSaving(false);
     }
   };
 
   // ── Delete ─────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this plan?")) return;
+  const handleDelete = async (id, planName) => {
+    const confirmed = await confirmToast(`Delete "${planName}" plan? This cannot be undone.`);
+    if (!confirmed) return;
     try {
       await planAPI.delete(id);
       setPlans(p => p.filter(pl => pl._id !== id));
+      showSuccess(`"${planName}" plan deleted.`);
     } catch (err) {
-      setError(err.message || "Failed to delete plan");
+      showError(err.message || "Failed to delete plan");
     }
   };
 
@@ -203,7 +209,7 @@ export default function Page() {
                     <button onClick={() => openEdit(plan)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-white rounded-lg transition-colors ${c.btn}`}>
                       <Edit2 size={13} /> Edit Plan
                     </button>
-                    <button onClick={() => handleDelete(plan._id)} className="p-2 border border-[var(--border)] rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 text-[var(--muted)] hover:text-red-500 transition-colors">
+                    <button onClick={() => handleDelete(plan._id, plan.name)} className="p-2 border border-[var(--border)] rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 text-[var(--muted)] hover:text-red-500 transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </div>

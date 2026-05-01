@@ -5,33 +5,101 @@
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-// ── Get stored token ───────────────────────────────────────────────
+// ── Token helpers ──────────────────────────────────────────────────
 const getToken = () => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("fitzone_token");
 };
 
-// ── Core fetch wrapper ─────────────────────────────────────────────
-const request = async (endpoint, options = {}) => {
+const saveToken = (t) => {
+  if (typeof window !== "undefined") localStorage.setItem("fitzone_token", t);
+};
+
+// ── Refresh token silently ─────────────────────────────────────────
+let isRefreshing = false;
+let refreshQueue = [];
+
+const processQueue = (error, token = null) => {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
+  });
+  refreshQueue = [];
+};
+
+const refreshAccessToken = async () => {
+  const refreshTok = typeof window !== "undefined" ? localStorage.getItem("fitzone_refresh") : null;
+  if (!refreshTok) throw new Error("No refresh token");
+
+  const res = await fetch(`${BASE_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken: refreshTok }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.accessToken) throw new Error("Refresh failed");
+
+  saveToken(data.accessToken);
+  return data.accessToken;
+};
+
+// ── Core fetch wrapper with auto token refresh ─────────────────────
+const request = async (endpoint, options = {}, _retry = false) => {
   const token = getToken();
 
   const config = {
-    credentials: "include", // Send cookies too (works in same-origin prod)
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      // Send token as Bearer header — works cross-origin in dev
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
   };
 
-  // Don't set Content-Type for FormData
   if (options.body instanceof FormData) {
     delete config.headers["Content-Type"];
   }
 
   const res = await fetch(`${BASE_URL}${endpoint}`, config);
+
+  // ── Auto-refresh on 401 ────────────────────────────────────────
+  if (res.status === 401 && !_retry && endpoint !== "/auth/refresh" && endpoint !== "/auth/login") {
+    if (isRefreshing) {
+      // Queue this request until refresh completes
+      return new Promise((resolve, reject) => {
+        refreshQueue.push({ resolve, reject });
+      }).then((newToken) => {
+        const retryConfig = {
+          ...config,
+          headers: { ...config.headers, Authorization: `Bearer ${newToken}` },
+        };
+        return fetch(`${BASE_URL}${endpoint}`, retryConfig).then(r => r.json());
+      });
+    }
+
+    isRefreshing = true;
+    try {
+      const newToken = await refreshAccessToken();
+      processQueue(null, newToken);
+      isRefreshing = false;
+      // Retry original request with new token
+      return request(endpoint, options, true);
+    } catch (err) {
+      processQueue(err, null);
+      isRefreshing = false;
+      // Refresh failed — clear tokens silently, let user stay on page
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("fitzone_token");
+        localStorage.removeItem("fitzone_refresh");
+        localStorage.removeItem("fitzone_user");
+      }
+      // Don't throw "Session expired" — just return empty data
+      return { success: false, data: [], message: "session_expired" };
+    }
+  }
 
   const contentType = res.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
@@ -220,7 +288,24 @@ export const logAPI = {
   clear:   (before)      => api.delete("/logs", { body: JSON.stringify({ before }) }),
 };
 
-// ── Upload APIs ────────────────────────────────────────────────────
+// ── Campaign APIs ──────────────────────────────────────────────────
+export const campaignAPI = {
+  getAll:    (params = {}) => api.get(`/campaigns?${new URLSearchParams(params)}`),
+  create:    (data)        => api.post("/campaigns", data),
+  update:    (id, data)    => api.put(`/campaigns/${id}`, data),
+  delete:    (id)          => api.delete(`/campaigns/${id}`),
+  broadcast: (data)        => api.post("/campaigns/broadcast", data),
+};
+
+// ── Inventory APIs ─────────────────────────────────────────────────
+export const inventoryAPI = {
+  getAll:      (params = {}) => api.get(`/inventory?${new URLSearchParams(params)}`),
+  getOne:      (id)          => api.get(`/inventory/${id}`),
+  create:      (data)        => api.post("/inventory", data),
+  update:      (id, data)    => api.put(`/inventory/${id}`, data),
+  updateStock: (id, stock)   => api.patch(`/inventory/${id}/stock`, { stock }),
+  delete:      (id)          => api.delete(`/inventory/${id}`),
+};
 export const uploadAPI = {
   upload: (file, folder = "fitzone") => {
     const form = new FormData();

@@ -4,6 +4,7 @@ import RoleDashboardLayout from "@/components/RoleDashboardLayout";
 import { GYM_OWNER_NAV } from "@/lib/gymOwnerNav";
 import { useAuth } from "@/context/AuthContext";
 import { trainerAPI, uploadAPI } from "@/lib/api";
+import { confirmToast, showSuccess, showError } from "@/lib/toast";
 import { Plus, Star, X, Check, RefreshCw, AlertCircle, Camera, Upload, User } from "lucide-react";
 
 const SPECIALTIES = [
@@ -55,7 +56,9 @@ export default function Page() {
       const res = await trainerAPI.getAll({ limit: 100 });
       setTrainers(res.data || []);
     } catch (err) {
-      setError(err.message || "Failed to load trainers");
+      if (!err.message?.includes("session") && !err.message?.includes("log in") && !err.message?.includes("authorized")) {
+        setError(err.message || "Failed to load trainers");
+      }
     } finally {
       setLoading(false);
     }
@@ -140,26 +143,31 @@ export default function Page() {
       if (editId) {
         const res = await trainerAPI.update(editId, payload);
         setTrainers(p => p.map(t => t._id === editId ? res.data : t));
+        showSuccess(`${payload.name} updated successfully!`);
       } else {
         const res = await trainerAPI.create(payload);
         setTrainers(p => [res.data, ...p]);
+        showSuccess(`${payload.name} added as trainer!`);
       }
       setSaving(false); setSuccess(true);
       setTimeout(() => { setSuccess(false); setShowModal(false); setForm(EMPTY_FORM); }, 1400);
     } catch (err) {
       setError(err.message || "Failed to save trainer");
+      showError(err.message || "Failed to save trainer");
       setSaving(false);
     }
   };
 
   // ── Delete ─────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
-    if (!confirm("Remove this trainer?")) return;
+  const handleDelete = async (id, name) => {
+    const confirmed = await confirmToast(`Remove "${name}" from trainers?`);
+    if (!confirmed) return;
     try {
       await trainerAPI.delete(id);
       setTrainers(p => p.filter(t => t._id !== id));
+      showSuccess(`${name} removed.`);
     } catch (err) {
-      setError(err.message || "Failed to delete trainer");
+      showError(err.message || "Failed to delete trainer");
     }
   };
 
@@ -287,7 +295,7 @@ export default function Page() {
                     </span>
                     <div className="flex gap-1">
                       <button onClick={(e) => { e.stopPropagation(); openEdit(t); }} className="text-xs text-blue-600 font-medium hover:text-blue-700 px-2 py-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">Edit</button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(t._id); }} className="text-xs text-red-500 font-medium hover:text-red-600 px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Remove</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(t._id, t.name); }} className="text-xs text-red-500 font-medium hover:text-red-600 px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Remove</button>
                     </div>
                   </div>
                 </div>

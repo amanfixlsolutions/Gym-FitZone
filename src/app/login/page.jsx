@@ -58,8 +58,19 @@ export default function LoginPage() {
   };
 
   return (
-    // Entire page always white — never affected by dark mode
-    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#fff" }}>
+    // Force light mode — login page is always white regardless of system/user theme
+    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#ffffff", colorScheme: "light" }}>
+      <style>{`
+        .login-page, .login-page * {
+          --bg: #f5f7fa !important;
+          --surface: #ffffff !important;
+          --surface2: #f9fafb !important;
+          --border: #e5e7eb !important;
+          --text: #111827 !important;
+          --muted: #6b7280 !important;
+          --muted2: #9ca3af !important;
+        }
+      `}</style>
 
       {/* ── LEFT PANEL (gradient — always dark) ── */}
       <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700 flex-col justify-between p-12 relative overflow-hidden flex-shrink-0">
@@ -105,7 +116,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT PANEL — hardcoded white, never dark ── */}
-      <div className="flex-1 flex items-center justify-center p-5 sm:p-8 lg:p-12 overflow-y-auto"
+      <div className="login-page flex-1 flex items-center justify-center p-5 sm:p-8 lg:p-12 overflow-y-auto"
         style={{ background: "#ffffff" }}>
         <div className="w-full max-w-md">
 

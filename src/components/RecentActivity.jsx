@@ -1,79 +1,64 @@
-import { CheckCircle, XCircle, Clock, UserPlus, CreditCard, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, UserPlus, CreditCard, AlertTriangle, Bell, Building2 } from "lucide-react";
+import Link from "next/link";
 
-const activities = [
-  {
-    icon: UserPlus,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    title: "New gym registered",
-    desc: "FitLife Studio – Delhi",
-    time: "2 min ago",
-  },
-  {
-    icon: CreditCard,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-    title: "Payment received",
-    desc: "Rahul Sharma – ₹2,999 (Quarterly)",
-    time: "15 min ago",
-  },
-  {
-    icon: CheckCircle,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-    title: "Gym approved",
-    desc: "CrossFit Arena – Kolkata",
-    time: "1 hr ago",
-  },
-  {
-    icon: AlertTriangle,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
-    title: "Review flagged",
-    desc: "Inappropriate content reported",
-    time: "2 hr ago",
-  },
-  {
-    icon: XCircle,
-    iconBg: "bg-red-50",
-    iconColor: "text-red-500",
-    title: "Payment failed",
-    desc: "Priya Mehta – ₹1,499",
-    time: "3 hr ago",
-  },
-  {
-    icon: Clock,
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
-    title: "Membership paused",
-    desc: "Amit Kumar – 30 days pause",
-    time: "5 hr ago",
-  },
-];
+const typeConfig = {
+  member:  { icon: UserPlus,      bg: "bg-blue-50 dark:bg-blue-900/20",    color: "text-blue-600" },
+  payment: { icon: CreditCard,    bg: "bg-emerald-50 dark:bg-emerald-900/20", color: "text-emerald-600" },
+  gym:     { icon: Building2,     bg: "bg-violet-50 dark:bg-violet-900/20", color: "text-violet-600" },
+  alert:   { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-900/20",  color: "text-amber-600" },
+  class:   { icon: Clock,         bg: "bg-purple-50 dark:bg-purple-900/20",color: "text-purple-600" },
+  trainer: { icon: UserPlus,      bg: "bg-teal-50 dark:bg-teal-900/20",    color: "text-teal-600" },
+  system:  { icon: Bell,          bg: "bg-gray-100 dark:bg-gray-800",      color: "text-gray-500" },
+};
 
-export default function RecentActivity() {
+const formatTime = (dateStr) => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hrs  = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1)  return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+  if (hrs < 24)  return `${hrs} hr ago`;
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+};
+
+export default function RecentActivity({ data }) {
+  const activities = data?.length ? data : [];
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-        <p className="text-sm font-semibold text-gray-800">Recent Activity</p>
-        <button className="text-xs text-blue-600 font-medium hover:text-blue-700">
-          View all
-        </button>
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+        <p className="text-sm font-semibold text-[var(--text)]">Recent Activity</p>
+        <Link href="/super-admin/logs" className="text-xs text-violet-600 font-medium hover:text-violet-700">
+          View all →
+        </Link>
       </div>
-      <div className="divide-y divide-gray-50">
-        {activities.map((item, i) => (
-          <div key={i} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${item.iconBg}`}>
-              <item.icon size={15} className={item.iconColor} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 leading-tight">{item.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5 truncate">{item.desc}</p>
-            </div>
-            <span className="text-[10px] text-gray-400 whitespace-nowrap mt-0.5">{item.time}</span>
-          </div>
-        ))}
-      </div>
+
+      {activities.length === 0 ? (
+        <div className="px-5 py-8 text-center text-sm text-[var(--muted)]">No recent activity</div>
+      ) : (
+        <div className="divide-y divide-[var(--border)]">
+          {activities.map((item, i) => {
+            const tc = typeConfig[item.type] || typeConfig.system;
+            const Icon = tc.icon;
+            return (
+              <div key={i} className="flex items-start gap-3 px-5 py-3.5 hover:bg-[var(--surface2)] transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${tc.bg}`}>
+                  <Icon size={15} className={tc.color} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--text)] leading-tight">{item.title || item.action}</p>
+                  <p className="text-xs text-[var(--muted)] mt-0.5 truncate">{item.message || item.details || item.desc}</p>
+                </div>
+                <span className="text-[10px] text-[var(--muted2)] whitespace-nowrap mt-0.5">
+                  {formatTime(item.createdAt || item.time)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

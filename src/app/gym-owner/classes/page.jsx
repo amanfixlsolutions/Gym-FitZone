@@ -4,6 +4,7 @@ import RoleDashboardLayout from "@/components/RoleDashboardLayout";
 import { GYM_OWNER_NAV } from "@/lib/gymOwnerNav";
 import { useAuth } from "@/context/AuthContext";
 import { classAPI, trainerAPI } from "@/lib/api";
+import { confirmToast, showSuccess, showError } from "@/lib/toast";
 import { Plus, Clock, Users, Edit2, Trash2, CalendarCheck, X, Check, RefreshCw, AlertCircle } from "lucide-react";
 
 const DAYS_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -36,7 +37,10 @@ export default function Page() {
       setClasses(classRes.data || []);
       setTrainers(trainerRes.data || []);
     } catch (err) {
-      setError(err.message || "Failed to load classes");
+      // Don't show session errors — token refresh handles them silently
+      if (!err.message?.includes("session") && !err.message?.includes("log in")) {
+        setError(err.message || "Failed to load classes");
+      }
     } finally {
       setLoading(false);
     }
@@ -89,26 +93,31 @@ export default function Page() {
       if (editId) {
         const res = await classAPI.update(editId, payload);
         setClasses(p => p.map(c => c._id === editId ? res.data : c));
+        showSuccess(`"${payload.name}" class updated!`);
       } else {
         const res = await classAPI.create(payload);
         setClasses(p => [res.data, ...p]);
+        showSuccess(`"${payload.name}" class added!`);
       }
       setSaving(false); setSuccess(true);
       setTimeout(() => { setSuccess(false); setShowModal(false); setForm(EMPTY_FORM); }, 1400);
     } catch (err) {
       setError(err.message || "Failed to save class");
+      showError(err.message || "Failed to save class");
       setSaving(false);
     }
   };
 
   // ── Delete ─────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this class?")) return;
+  const handleDelete = async (id, name) => {
+    const confirmed = await confirmToast(`Delete "${name}" class? This cannot be undone.`);
+    if (!confirmed) return;
     try {
       await classAPI.delete(id);
       setClasses(p => p.filter(c => c._id !== id));
+      showSuccess(`"${name}" class deleted.`);
     } catch (err) {
-      setError(err.message || "Failed to delete class");
+      showError(err.message || "Failed to delete class");
     }
   };
 
@@ -140,7 +149,7 @@ export default function Page() {
 
         {error && !showModal && (
           <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
-            <AlertCircle size={15} />{error}
+            <AlertCircle size={15} />{error !== "session_expired" ? error : ""}
           </div>
         )}
 
@@ -208,7 +217,7 @@ export default function Page() {
                     <span className="text-xs font-semibold text-blue-600">{priceStr}</span>
                     <div className="flex gap-1">
                       <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit2 size={13} className="text-blue-600" /></button>
-                      <button onClick={() => handleDelete(c._id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={13} className="text-red-500" /></button>
+                      <button onClick={() => handleDelete(c._id, c.name)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={13} className="text-red-500" /></button>
                     </div>
                   </div>
                 </div>

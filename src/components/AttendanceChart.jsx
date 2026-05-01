@@ -1,17 +1,19 @@
 "use client";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 
-const data = [
-  { day: "Sun", value: 3200 },
-  { day: "Mon", value: 5100 },
-  { day: "Tue", value: 8562, active: true },
-  { day: "Wed", value: 4800 },
-  { day: "Thu", value: 6200 },
-  { day: "Fri", value: 5900 },
-  { day: "Sat", value: 4100 },
-];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function AttendanceChart() {
+export default function AttendanceChart({ data: propData }) {
+  // Build chart data from real attendance or fallback to zeros
+  const chartData = propData?.length
+    ? propData.map((d, i) => ({
+        day: d.date ? new Date(d.date).toLocaleDateString("en", { weekday: "short" }) : DAYS[i] || `D${i}`,
+        value: d.count || 0,
+      }))
+    : DAYS.map(d => ({ day: d, value: 0 }));
+
+  const maxEntry = chartData.reduce((max, d) => d.value > max.value ? d : max, { day: "—", value: 0 });
+
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
@@ -19,24 +21,25 @@ export default function AttendanceChart() {
         <button className="text-[var(--muted2)] hover:text-[var(--muted)] text-lg leading-none">···</button>
       </div>
       <ResponsiveContainer width="100%" height={150}>
-        <BarChart data={data} barSize={26} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+        <BarChart data={chartData} barSize={26} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
           <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--muted2)" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "var(--muted2)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
+          <YAxis tick={{ fontSize: 11, fill: "var(--muted2)" }} axisLine={false} tickLine={false}
+            tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
           <Tooltip
             cursor={{ fill: "transparent" }}
             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" }}
             formatter={(v) => [v.toLocaleString(), "Check-ins"]}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.active ? "#2563eb" : "var(--border)"} />
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.day === maxEntry.day ? "#2563eb" : "var(--border)"} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <div className="mt-2 flex items-center justify-between text-xs text-[var(--muted)]">
-        <span>Highest: <strong className="text-[var(--text)]">Tuesday</strong></span>
-        <span className="text-blue-600 font-semibold">8,562 check-ins</span>
+        <span>Highest: <strong className="text-[var(--text)]">{maxEntry.day}</strong></span>
+        <span className="text-blue-600 font-semibold">{maxEntry.value.toLocaleString()} check-ins</span>
       </div>
     </div>
   );

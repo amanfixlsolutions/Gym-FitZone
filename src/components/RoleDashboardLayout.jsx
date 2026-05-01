@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { notificationAPI } from "@/lib/api";
 
 export default function RoleDashboardLayout({
   children, title, navItems, role,
@@ -18,14 +19,72 @@ export default function RoleDashboardLayout({
   const { dark, toggle } = useTheme();
   const { user, logoutUser, loaded } = useAuth();
 
-  // ── ALL hooks must be declared before any conditional return ──
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [mobileOpen,       setMobileOpen]       = useState(false);
   const [openMenus,        setOpenMenus]        = useState({});
   const [showNotif,        setShowNotif]        = useState(false);
   const [showProfile,      setShowProfile]      = useState(false);
+  const [searchQuery,      setSearchQuery]      = useState("");
+  const [notifs,           setNotifs]           = useState([]);
+  const [unreadCount,      setUnreadCount]      = useState(0);
+  const [currentDate,      setCurrentDate]      = useState("");
   const notifRef   = useRef(null);
   const profileRef = useRef(null);
+
+  // ── Set current date ───────────────────────────────────────────
+  useEffect(() => {
+    const now = new Date();
+    setCurrentDate(now.toLocaleDateString("en-IN", { month: "short", year: "numeric" }));
+  }, []);
+
+  // ── Fetch real notifications ───────────────────────────────────
+  const fetchNotifs = useCallback(async () => {
+    try {
+      const res = await notificationAPI.getAll({ limit: 5, unread: "false" });
+      setNotifs(res.data || []);
+      setUnreadCount(res.unreadCount || 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (loaded && user) {
+      fetchNotifs();
+      const interval = setInterval(fetchNotifs, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [loaded, user, fetchNotifs]);
+
+  // ── Mark notification as read ──────────────────────────────────
+  const handleMarkRead = async (id) => {
+    try {
+      await notificationAPI.markRead(id);
+      setNotifs(p => p.map(n => n._id === id ? { ...n, read: true } : n));
+      setUnreadCount(p => Math.max(0, p - 1));
+    } catch {}
+  };
+
+  // ── Export current page data as CSV ───────────────────────────
+  const handleExport = () => {
+    const pageTitle = title.replace(/\s+/g, "_").toLowerCase();
+    const csvContent = `data:text/csv;charset=utf-8,FitZone Export - ${title}\nDate: ${new Date().toLocaleDateString()}\n\nExported from ${title} page`;
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = `fitzone_${pageTitle}_${Date.now()}.csv`;
+    link.click();
+  };
+
+  // ── Search — navigate to relevant page ────────────────────────
+  const handleSearch = (e) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      if (q.includes("member")) router.push(`/${role}/members?search=${encodeURIComponent(searchQuery)}`);
+      else if (q.includes("trainer")) router.push(`/${role}/trainers?search=${encodeURIComponent(searchQuery)}`);
+      else if (q.includes("class")) router.push(`/${role}/classes?search=${encodeURIComponent(searchQuery)}`);
+      else if (q.includes("plan")) router.push(`/${role}/plans?search=${encodeURIComponent(searchQuery)}`);
+      else router.push(`/${role}/members?search=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery("");
+    }
+  };
 
   // Auto-open parent dropdown when a child route is active
   useEffect(() => {
@@ -48,17 +107,12 @@ export default function RoleDashboardLayout({
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
-  // Close mobile drawer on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  // Route guard — redirect to login if not authenticated
   useEffect(() => {
-    if (loaded && !user) {
-      router.push("/login");
-    }
+    if (loaded && !user) router.push("/login");
   }, [loaded, user, router]);
 
-  // ── Derived values (after all hooks) ──────────────────────────
   const userName   = user?.name   || _userName   || "User";
   const userEmail  = user?.email  || _userEmail  || "";
   const userAvatar = user?.avatar || _userAvatar
@@ -97,7 +151,6 @@ export default function RoleDashboardLayout({
     label: "Admin",
   };
 
-  // ── Conditional renders AFTER all hooks ───────────────────────
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
@@ -107,6 +160,23 @@ export default function RoleDashboardLayout({
   }
 
   if (!user) return null;
+
+  const formatNotifTime = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hrs  = Math.floor(diff / 3600000);
+    if (mins < 1)  return "now";
+    if (mins < 60) return `${mins}m`;
+    if (hrs < 24)  return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+  };
+
+  const dotColor = (type) => ({
+    member: "bg-blue-500", payment: "bg-emerald-500",
+    class: "bg-purple-500", alert: "bg-amber-500",
+    trainer: "bg-teal-500", system: "bg-gray-400",
+  }[type] || "bg-gray-400");
 
   // ─── Sidebar inner content ────────────────────────────────────
   const SidebarContent = ({ collapsed }) => (
@@ -227,15 +297,6 @@ export default function RoleDashboardLayout({
           <LogOut size={16} className="flex-shrink-0" />
           {!collapsed && "Logout"}
         </button>
-        {!collapsed && (
-          <div className={`mt-2 bg-gradient-to-br ${accent.grad} rounded-xl p-4 text-white`}>
-            <p className="font-semibold text-sm">FitZone Pro</p>
-            <p className="text-[11px] text-white/70 mt-0.5">AI features & advanced analytics</p>
-            <button className="mt-2 w-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold py-1.5 rounded-lg transition-colors">
-              Upgrade
-            </button>
-          </div>
-        )}
       </div>
     </>
   );
@@ -295,7 +356,10 @@ export default function RoleDashboardLayout({
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted2)]" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search members, trainers, classes... (Enter)"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
               className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)]
                 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500
                 text-[var(--text)] placeholder:text-[var(--muted2)] transition-all"
@@ -304,16 +368,20 @@ export default function RoleDashboardLayout({
 
           <div className="flex-1" />
 
-          <button className="hidden lg:flex items-center gap-2 text-xs text-[var(--muted)]
-            bg-[var(--surface2)] border border-[var(--border)] px-3 py-1.5 rounded-lg
-            hover:border-blue-400 hover:bg-[var(--surface3)] transition-all whitespace-nowrap">
+          {/* Calendar — shows current month */}
+          <div className="hidden lg:flex items-center gap-2 text-xs text-[var(--muted)]
+            bg-[var(--surface2)] border border-[var(--border)] px-3 py-1.5 rounded-lg whitespace-nowrap">
             <Calendar size={14} className="text-[var(--muted2)]" />
-            <span>Jan 2025</span>
-            <ChevronDown size={12} />
-          </button>
+            <span>{currentDate || new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
+          </div>
 
-          <button className={`hidden sm:flex items-center gap-2 text-xs font-semibold text-white
-            ${accent.solid} ${accent.hover} px-3 py-1.5 rounded-lg transition-all shadow-sm whitespace-nowrap`}>
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            className={`hidden sm:flex items-center gap-2 text-xs font-semibold text-white
+              ${accent.solid} ${accent.hover} px-3 py-1.5 rounded-lg transition-all shadow-sm whitespace-nowrap`}
+            title="Export current page data"
+          >
             <Download size={14} />
             <span className="hidden xl:inline">Export</span>
           </button>
@@ -333,41 +401,59 @@ export default function RoleDashboardLayout({
           {/* Notifications */}
           <div className="relative flex-shrink-0" ref={notifRef}>
             <button
-              onClick={() => { setShowNotif(v => !v); setShowProfile(false); }}
+              onClick={() => { setShowNotif(v => !v); setShowProfile(false); if (!showNotif) fetchNotifs(); }}
               className="w-9 h-9 flex items-center justify-center rounded-lg
                 hover:bg-[var(--surface2)] transition-colors relative"
             >
               <Bell size={18} className="text-[var(--muted)]" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full
-                border-2 border-[var(--surface)]" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full
+                  border-2 border-[var(--surface)]" />
+              )}
             </button>
             {showNotif && (
               <div className="absolute right-0 top-12 w-[320px] bg-[var(--surface)]
                 border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                   <p className="text-sm font-semibold text-[var(--text)]">Notifications</p>
-                  <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30
-                    dark:text-red-400 font-bold px-2 py-0.5 rounded-full">3 new</span>
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30
+                      dark:text-red-400 font-bold px-2 py-0.5 rounded-full">{unreadCount} new</span>
+                  )}
                 </div>
-                {[
-                  { dot: "bg-blue-500",   t: "New member joined",  d: "Rahul Sharma joined your gym", time: "2m" },
-                  { dot: "bg-emerald-500",t: "Payment received",   d: "₹2,999 credited",              time: "15m" },
-                  { dot: "bg-amber-500",  t: "Class reminder",     d: "Yoga starts in 30 minutes",    time: "30m" },
-                ].map((n, i) => (
-                  <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface2)]
-                    cursor-pointer border-b border-[var(--border)] last:border-0 transition-colors">
-                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.dot}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--text)]">{n.t}</p>
-                      <p className="text-xs text-[var(--muted)] truncate">{n.d}</p>
-                    </div>
-                    <span className="text-[10px] text-[var(--muted2)] whitespace-nowrap">{n.time}</span>
+                {notifs.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-xs text-[var(--muted)]">
+                    No notifications yet
                   </div>
-                ))}
+                ) : (
+                  notifs.slice(0, 5).map((n) => (
+                    <div
+                      key={n._id}
+                      onClick={() => handleMarkRead(n._id)}
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface2)]
+                        cursor-pointer border-b border-[var(--border)] last:border-0 transition-colors
+                        ${!n.read ? "bg-blue-50/30 dark:bg-blue-900/10" : ""}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${dotColor(n.type)}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm text-[var(--text)] ${!n.read ? "font-semibold" : "font-medium"}`}>
+                          {n.title}
+                        </p>
+                        <p className="text-xs text-[var(--muted)] truncate">{n.message}</p>
+                      </div>
+                      <span className="text-[10px] text-[var(--muted2)] whitespace-nowrap">
+                        {formatNotifTime(n.createdAt)}
+                      </span>
+                    </div>
+                  ))
+                )}
                 <div className="px-4 py-2.5 border-t border-[var(--border)]">
-                  <Link href={`/${role}/notifications`}
-                    className="text-xs text-blue-600 font-medium hover:text-blue-700">
-                    View all →
+                  <Link
+                    href={`/${role}/notifications`}
+                    onClick={() => setShowNotif(false)}
+                    className="text-xs text-blue-600 font-medium hover:text-blue-700"
+                  >
+                    View all notifications →
                   </Link>
                 </div>
               </div>

@@ -1,4 +1,6 @@
-import DashboardLayout from "@/components/DashboardLayout";
+"use client";
+import RoleDashboardLayout from "@/components/RoleDashboardLayout";
+import { SUPER_ADMIN_NAV } from "@/lib/superAdminNav";
 import { Star, Flag, CheckCircle, Trash2, ThumbsUp } from "lucide-react";
 
 const reviews = [
@@ -27,7 +29,7 @@ function Stars({ count }) {
 
 export default function ReviewsPage() {
   return (
-    <DashboardLayout title="Reviews">
+    <RoleDashboardLayout title="Reviews" navItems={SUPER_ADMIN_NAV} role="super-admin">
       <div className="space-y-5">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text)]">Reviews & Ratings</h1>
@@ -91,6 +93,6 @@ export default function ReviewsPage() {
           ))}
         </div>
       </div>
-    </DashboardLayout>
+    </RoleDashboardLayout>
   );
 }
