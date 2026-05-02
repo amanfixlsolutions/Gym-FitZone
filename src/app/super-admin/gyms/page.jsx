@@ -246,7 +246,12 @@ export default function Page() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-[var(--text)] whitespace-nowrap">
-                        {g.totalMembers > 0 ? g.totalMembers.toLocaleString() : "—"}
+                        <div>
+                          <p className="font-medium">{(g.totalMembers || 0).toLocaleString()}</p>
+                          {g.activeMembers > 0 && (
+                            <p className="text-[10px] text-emerald-600">{g.activeMembers} active</p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-semibold text-emerald-600 whitespace-nowrap">
                         {g.monthlyRevenue > 0
@@ -356,9 +361,9 @@ export default function Page() {
             {/* Stats row */}
             <div className="grid grid-cols-3 divide-x divide-[var(--border)] border-b border-[var(--border)]">
               {[
-                { label: "Members",  value: (viewGym.totalMembers || 0).toLocaleString() },
-                { label: "Rating",   value: viewGym.rating > 0 ? `${viewGym.rating}★` : "—" },
-                { label: "Revenue",  value: viewGym.monthlyRevenue > 0 ? `₹${(viewGym.monthlyRevenue / 1000).toFixed(0)}K` : "—" },
+                { label: "Total Members",  value: (viewGym.totalMembers  || 0).toLocaleString() },
+                { label: "Active Members", value: (viewGym.activeMembers || 0).toLocaleString() },
+                { label: "Rating",         value: viewGym.rating > 0 ? `${viewGym.rating}★` : "—" },
               ].map(s => (
                 <div key={s.label} className="py-4 text-center">
                   <p className="text-xl font-black text-[var(--text)]">{s.value}</p>

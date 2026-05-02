@@ -54,6 +54,37 @@ export default function RoleDashboardLayout({
     }
   }, [loaded, user, fetchNotifs]);
 
+  // ── Socket.io — join role room for real-time notifications ─────
+  useEffect(() => {
+    if (!loaded || !user) return;
+    let socket = null;
+    const connectSocket = async () => {
+      try {
+        const { io } = await import("socket.io-client");
+        const token = typeof window !== "undefined" ? localStorage.getItem("fitzone_token") : null;
+        if (!token) return;
+        const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        socket = io(BACKEND, {
+          auth: { token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+        });
+        socket.on("connect", () => {
+          // Join role room so super-admin gets all important events
+          if (user.role) socket.emit("join-role", user.role);
+          // Join gym room if gym-owner
+          if (user.gym) socket.emit("join-gym", user.gym);
+        });
+        socket.on("notification", () => {
+          // Re-fetch notifications when a new one arrives
+          fetchNotifs();
+        });
+      } catch { /* socket.io-client may not be installed */ }
+    };
+    connectSocket();
+    return () => { if (socket) socket.disconnect(); };
+  }, [loaded, user, fetchNotifs]);
+
   // ── Mark notification as read ──────────────────────────────────
   const handleMarkRead = async (id) => {
     try {
@@ -65,23 +96,75 @@ export default function RoleDashboardLayout({
 
   // ── Export current page data as CSV ───────────────────────────
   const handleExport = () => {
-    const pageTitle = title.replace(/\s+/g, "_").toLowerCase();
-    const csvContent = `data:text/csv;charset=utf-8,FitZone Export - ${title}\nDate: ${new Date().toLocaleDateString()}\n\nExported from ${title} page`;
-    const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
-    link.download = `fitzone_${pageTitle}_${Date.now()}.csv`;
-    link.click();
+    // Collect all visible table data from the current page DOM
+    const tables = document.querySelectorAll("table");
+    if (tables.length === 0) {
+      // No table — export page title + date as minimal CSV
+      const csv = `"FitZone Export","${title}"\n"Date","${new Date().toLocaleDateString("en-IN")}"\n"Page","${window.location.pathname}"`;
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url;
+      a.download = `fitzone_${title.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    // Export the first (main) table on the page
+    const table = tables[0];
+    const rows  = [];
+
+    // Headers
+    const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.innerText.trim());
+    if (headers.length) rows.push(headers);
+
+    // Body rows
+    table.querySelectorAll("tbody tr").forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll("td")).map(td => {
+        // Get text content, strip extra whitespace
+        return td.innerText.replace(/\n+/g, " ").trim();
+      });
+      if (cells.some(c => c)) rows.push(cells);
+    });
+
+    if (rows.length === 0) {
+      rows.push([`FitZone Export - ${title}`, new Date().toLocaleDateString("en-IN")]);
+    }
+
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `fitzone_${title.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ── Search — navigate to relevant page ────────────────────────
   const handleSearch = (e) => {
     if (e.key === "Enter" && searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      if (q.includes("member")) router.push(`/${role}/members?search=${encodeURIComponent(searchQuery)}`);
-      else if (q.includes("trainer")) router.push(`/${role}/trainers?search=${encodeURIComponent(searchQuery)}`);
-      else if (q.includes("class")) router.push(`/${role}/classes?search=${encodeURIComponent(searchQuery)}`);
-      else if (q.includes("plan")) router.push(`/${role}/plans?search=${encodeURIComponent(searchQuery)}`);
-      else router.push(`/${role}/members?search=${encodeURIComponent(searchQuery)}`);
+      const q   = searchQuery.trim().toLowerCase();
+      const enc = encodeURIComponent(searchQuery.trim());
+
+      // Build route map based on role
+      const base = role === "super-admin" ? "/super-admin" : `/${role}`;
+
+      // Route by keyword in query
+      let path;
+      if (q.includes("trainer"))    path = `${base}/trainers?search=${enc}`;
+      else if (q.includes("class")) path = role === "super-admin" ? `${base}/analytics` : `${base}/classes?search=${enc}`;
+      else if (q.includes("plan"))  path = `${base}/plans?search=${enc}`;
+      else if (q.includes("gym"))   path = role === "super-admin" ? `${base}/gyms?search=${enc}` : `${base}/settings`;
+      else if (q.includes("invoice") || q.includes("payment") || q.includes("revenue"))
+                                    path = role === "super-admin" ? `${base}/finances/transactions?search=${enc}` : `${base}/revenue/transactions?search=${enc}`;
+      else if (q.includes("promo")) path = role === "super-admin" ? `${base}/promos?search=${enc}` : `${base}/marketing`;
+      else if (q.includes("blog"))  path = role === "super-admin" ? `${base}/blog?search=${enc}` : `${base}/marketing`;
+      else if (q.includes("log"))   path = role === "super-admin" ? `${base}/logs?search=${enc}` : `${base}/attendance`;
+      else                          path = `${base}/members?search=${enc}`;
+
+      router.push(path);
       setSearchQuery("");
     }
   };

@@ -198,10 +198,11 @@ export const classAPI = {
 
 // ── Attendance APIs ────────────────────────────────────────────────
 export const attendanceAPI = {
-  getAll:   (params = {}) => api.get(`/attendance?${new URLSearchParams(params)}`),
-  checkIn:  (data)        => api.post("/attendance/checkin", data),
-  checkOut: (data)        => api.post("/attendance/checkout", data),
-  stats:    ()            => api.get("/attendance/stats"),
+  getAll:    (params = {}) => api.get(`/attendance?${new URLSearchParams(params)}`),
+  checkIn:   (data)        => api.post("/attendance/checkin", data),
+  checkOut:  (data)        => api.post("/attendance/checkout", data),
+  stats:     ()            => api.get("/attendance/stats"),
+  qrCheckin: (data)        => api.post("/attendance/qr-checkin", data),
 };
 
 // ── Plan APIs ──────────────────────────────────────────────────────
@@ -210,6 +211,7 @@ export const planAPI = {
   getOne:  (id)          => api.get(`/plans/${id}`),
   create:  (data)        => api.post("/plans", data),
   update:  (id, data)    => api.put(`/plans/${id}`, data),
+  toggle:  (id)          => api.patch(`/plans/${id}/toggle`, {}),
   delete:  (id)          => api.delete(`/plans/${id}`),
 };
 
@@ -270,6 +272,7 @@ export const reviewAPI = {
   create:   (data)        => api.post("/reviews", data),
   approve:  (id)          => api.post(`/reviews/${id}/approve`, {}),
   flag:     (id, reason)  => api.post(`/reviews/${id}/flag`, { reason }),
+  reject:   (id, reason)  => api.post(`/reviews/${id}/reject`, { reason }),
   delete:   (id)          => api.delete(`/reviews/${id}`),
 };
 
@@ -324,4 +327,10 @@ export const uploadAPI = {
     });
   },
   delete: (publicId) => api.delete("/uploads", { body: JSON.stringify({ publicId }) }),
+};
+
+// ── System APIs ────────────────────────────────────────────────────
+export const systemAPI = {
+  health:  ()            => api.get("/system/health"),
+  logs:    (params = {}) => api.get(`/system/logs?${new URLSearchParams(params)}`),
 };

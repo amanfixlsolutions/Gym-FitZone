@@ -37,6 +37,10 @@ export default function Page() {
   const [viewMember,   setViewMember]   = useState(null); // profile modal
   const [qrMember,     setQrMember]     = useState(null); // QR modal
   const [qrLoading,    setQrLoading]    = useState(false);
+  const [editMember,   setEditMember]   = useState(null); // edit modal
+  const [editForm,     setEditForm]     = useState(EMPTY_FORM);
+  const [editSaving,   setEditSaving]   = useState(false);
+  const [editSuccess,  setEditSuccess]  = useState(false);
 
   // Pagination states
   const [currentPage,  setCurrentPage]  = useState(1);
@@ -171,7 +175,56 @@ export default function Page() {
     }
   };
 
-  // ── Filter locally for instant search ─────────────────────────
+  // ── Open edit modal ───────────────────────────────────────────
+  const openEdit = (e, member) => {
+    e.stopPropagation();
+    setEditForm({
+      name:             member.name             || "",
+      email:            member.email            || "",
+      phone:            member.phone            || "",
+      plan:             member.planName         || "",
+      gender:           member.gender           || "",
+      age:              member.age              ? String(member.age) : "",
+      address:          member.address          || "",
+      emergencyContact: member.emergencyContact || "",
+      notes:            member.notes            || "",
+    });
+    setEditMember(member);
+    setEditSuccess(false);
+    setViewMember(null);
+  };
+
+  // ── Save edit ──────────────────────────────────────────────────
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name || !editForm.email || !editForm.phone) return;
+    setEditSaving(true);
+    setError("");
+    try {
+      const selectedPlan = plans.find(p => p.name === editForm.plan);
+      const payload = {
+        name:             editForm.name,
+        email:            editForm.email,
+        phone:            editForm.phone,
+        gender:           editForm.gender,
+        age:              editForm.age ? parseInt(editForm.age) : undefined,
+        address:          editForm.address,
+        emergencyContact: editForm.emergencyContact,
+        notes:            editForm.notes,
+        ...(selectedPlan ? { plan: selectedPlan._id, planName: selectedPlan.name } : editForm.plan ? { planName: editForm.plan } : {}),
+      };
+      const res = await memberAPI.update(editMember._id, payload);
+      // Update local list
+      setMembers(prev => prev.map(m => m._id === editMember._id ? { ...m, ...res.data } : m));
+      showSuccess(`${editForm.name} updated!`);
+      setEditSuccess(true);
+      setTimeout(() => { setEditMember(null); setEditSuccess(false); }, 1200);
+    } catch (err) {
+      setError(err.message || "Failed to update member");
+    } finally {
+      setEditSaving(false);
+    }
+  };
   const filtered = members.filter(m => {
     const q = search.toLowerCase();
     const matchSearch = !search ||
@@ -268,7 +321,7 @@ export default function Page() {
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-[var(--surface2)] border-b border-[var(--border)]">
                 <tr>
-                  {["Name", "Contact", "Plan", "Status", "Expiry", "Check-ins", ""].map(h => (
+                  {["Name", "Contact", "Plan", "Status", "Expiry", "Check-ins", "Actions"].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -313,13 +366,29 @@ export default function Page() {
                     <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">{formatDate(m.expiryDate)}</td>
                     <td className="px-4 py-3 font-semibold text-[var(--text)]">{m.totalCheckins ?? 0}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={(e) => handleShowQR(e, m)}
-                        className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg cursor-pointer"
-                        title="View QR Code"
-                      >
-                        <QrCode size={14} className="text-blue-600" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => handleShowQR(e, m)}
+                          className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg cursor-pointer"
+                          title="View QR Code"
+                        >
+                          <QrCode size={14} className="text-blue-600" />
+                        </button>
+                        <button
+                          onClick={(e) => openEdit(e, m)}
+                          className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg cursor-pointer"
+                          title="Edit Member"
+                        >
+                          <Edit2 size={14} className="text-amber-600" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(m._id, m.name); }}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg cursor-pointer"
+                          title="Delete Member"
+                        >
+                          <Trash2 size={14} className="text-red-500" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -466,6 +535,12 @@ export default function Page() {
                   <QrCode size={15} /> View QR Code
                 </button>
                 <button
+                  onClick={(e) => openEdit(e, viewMember)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold rounded-xl hover:bg-amber-200 transition-colors text-sm cursor-pointer"
+                >
+                  <Edit2 size={15} /> Edit
+                </button>
+                <button
                   onClick={() => handleDelete(viewMember._id, viewMember.name)}
                   className="px-4 py-2.5 border border-red-200 text-red-500 font-semibold rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm cursor-pointer"
                 >
@@ -528,6 +603,121 @@ export default function Page() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT MEMBER MODAL ── */}
+      {editMember && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+              <div>
+                <h2 className="text-lg font-bold text-[var(--text)]">Edit Member</h2>
+                <p className="text-xs text-[var(--muted)] mt-0.5">Update details for {editMember.name}</p>
+              </div>
+              <button onClick={() => { setEditMember(null); setError(""); }}
+                className="p-2 hover:bg-[var(--surface2)] rounded-lg cursor-pointer">
+                <X size={18} className="text-[var(--muted)]" />
+              </button>
+            </div>
+
+            {editSuccess ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-4">
+                  <Check size={32} className="text-emerald-600" />
+                </div>
+                <p className="text-lg font-bold text-[var(--text)]">Member Updated!</p>
+                <p className="text-sm text-[var(--muted)] mt-1">{editForm.name} has been updated successfully.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleEdit} className="px-6 py-5 space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-lg">
+                    <AlertCircle size={13} />{error}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Personal Information</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                      <input required type="text" value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Email <span className="text-red-500">*</span></label>
+                      <input required type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Phone <span className="text-red-500">*</span></label>
+                      <input required type="tel" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Age</label>
+                      <input type="number" min="10" max="100" value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Gender</label>
+                      <select value={editForm.gender} onChange={e => setEditForm(p => ({ ...p, gender: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        <option value="">Select gender</option>
+                        <option>Male</option><option>Female</option><option>Other</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Membership Plan</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(plans.length > 0 ? plans.map(p => p.name) : ["Day Pass", "Weekly", "Monthly", "Quarterly", "Yearly"]).map(p => (
+                      <button key={p} type="button" onClick={() => setEditForm(prev => ({ ...prev, plan: p }))}
+                        className={`px-3 py-2 rounded-xl text-sm font-medium border-2 transition-all cursor-pointer ${editForm.plan === p ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400" : "border-[var(--border)] text-[var(--muted)] hover:border-blue-300"}`}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Additional Info</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Address</label>
+                      <input type="text" value={editForm.address} onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Emergency Contact</label>
+                      <input type="tel" value={editForm.emergencyContact} onChange={e => setEditForm(p => ({ ...p, emergencyContact: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Notes</label>
+                      <textarea rows={2} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => { setEditMember(null); setError(""); }}
+                    className="flex-1 py-2.5 border border-[var(--border)] text-[var(--text)] font-medium rounded-xl hover:bg-[var(--surface2)] transition-colors text-sm cursor-pointer">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={editSaving}
+                    className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-60 transition-colors text-sm flex items-center justify-center gap-2 cursor-pointer">
+                    {editSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Edit2 size={15} />}
+                    {editSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
