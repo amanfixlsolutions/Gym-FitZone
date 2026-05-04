@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Dumbbell, Menu, X, MapPin, Phone, Mail, ChevronDown, LogOut, User, Settings, Award, CreditCard } from "lucide-react";
+import { Dumbbell, Menu, X, MapPin, Phone, Mail, ChevronDown, LogOut, User, Settings, Award, CreditCard, Video, Bell } from "lucide-react";
+import { notificationAPI, liveClassAPI } from "@/lib/api";
 import { FaFacebook, FaInstagram, FaTwitter, FaYoutube } from "react-icons/fa";
 
 const NAV_ITEMS = [
@@ -23,7 +24,14 @@ export default function WebsiteLayout({ children }) {
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [mounted,     setMounted]     = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifOpen,   setNotifOpen]   = useState(false);
+  const [zoomOpen,    setZoomOpen]    = useState(false);
+  const [notifs,      setNotifs]      = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [upcomingClasses, setUpcomingClasses] = useState([]);
   const profileRef = useRef(null);
+  const notifRef   = useRef(null);
+  const zoomRef    = useRef(null);
 
   useEffect(() => {
     setMounted(true);
@@ -32,13 +40,64 @@ export default function WebsiteLayout({ children }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => { setMobileOpen(false); setProfileOpen(false); }, [pathname]);
+  useEffect(() => { setMobileOpen(false); setProfileOpen(false); setNotifOpen(false); setZoomOpen(false); }, [pathname]);
 
   useEffect(() => {
-    const fn = (e) => { if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false); };
+    const fn = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (notifRef.current   && !notifRef.current.contains(e.target))   setNotifOpen(false);
+      if (zoomRef.current    && !zoomRef.current.contains(e.target))    setZoomOpen(false);
+    };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, []);
+
+  // ── Fetch notifications when user is logged in ─────────────────
+  useEffect(() => {
+    if (!user) return;
+    const fetchNotifs = async () => {
+      try {
+        const res = await notificationAPI.getAll({ limit: 8 });
+        setNotifs(res.data || []);
+        setUnreadCount(res.unreadCount || 0);
+      } catch { /* silent */ }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // ── Fetch upcoming live classes ────────────────────────────────
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const res = await liveClassAPI.getUpcoming({ limit: 5 });
+        setUpcomingClasses(res.data || []);
+      } catch { /* silent */ }
+    };
+    fetchClasses();
+  }, []);
+
+  const handleMarkRead = async (id) => {
+    try {
+      await notificationAPI.markRead(id);
+      setNotifs(p => p.map(n => n._id === id ? { ...n, read: true } : n));
+      setUnreadCount(c => Math.max(0, c - 1));
+    } catch { /* silent */ }
+  };
+
+  const fmtTime = (d) => {
+    if (!d) return "";
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hrs  = Math.floor(diff / 3600000);
+    if (mins < 1)  return "now";
+    if (mins < 60) return `${mins}m`;
+    if (hrs < 24)  return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+  };
+
+  const fmtClassDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
 
   const handleLogout = () => {
     logoutUser();
@@ -92,6 +151,114 @@ export default function WebsiteLayout({ children }) {
 
           {/* Auth */}
           <div className="hidden md:flex gap-3 items-center">
+            {/* ── Zoom Live Classes icon ── */}
+            <div className="relative" ref={zoomRef}>
+              <button
+                onClick={() => { setZoomOpen(v => !v); setNotifOpen(false); setProfileOpen(false); }}
+                className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all cursor-pointer"
+                title="Live Classes"
+              >
+                <Video size={18} className="text-gray-600" />
+                {upcomingClasses.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                )}
+              </button>
+
+              {zoomOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-amber-100 overflow-hidden z-50">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-indigo-600">
+                    <p className="text-sm font-bold text-white flex items-center gap-2"><Video size={15} /> Upcoming Live Classes</p>
+                    <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">{upcomingClasses.length} upcoming</span>
+                  </div>
+                  {upcomingClasses.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-xs text-gray-400">No upcoming live classes</div>
+                  ) : (
+                    <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                      {upcomingClasses.map(lc => (
+                        <div key={lc._id} className="px-4 py-3 hover:bg-blue-50 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{lc.title}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">{lc.category} · {lc.duration} min</p>
+                              <p className="text-[10px] text-blue-600 font-semibold mt-0.5">📅 {fmtClassDate(lc.scheduledAt)}</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${lc.status === "live" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
+                                {lc.status === "live" ? "🔴 LIVE" : "Scheduled"}
+                              </span>
+                              <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
+                            </div>
+                          </div>
+                          {lc.zoomJoinUrl && lc.status === "live" && (
+                            <a href={lc.zoomJoinUrl} target="_blank" rel="noopener noreferrer"
+                              className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
+                              Join Now →
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+                    <p className="text-[10px] text-gray-400 text-center">Live classes powered by Zoom</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Notifications icon ── */}
+            {user && (
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={() => { setNotifOpen(v => !v); setZoomOpen(false); setProfileOpen(false); }}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all cursor-pointer"
+                  title="Notifications"
+                >
+                  <Bell size={18} className="text-gray-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-black text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-amber-100 overflow-hidden z-50">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-bold text-gray-800">Notifications</p>
+                      {unreadCount > 0 && (
+                        <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full">{unreadCount} new</span>
+                      )}
+                    </div>
+                    {notifs.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-xs text-gray-400">No notifications yet</div>
+                    ) : (
+                      <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                        {notifs.map(n => (
+                          <div key={n._id} onClick={() => handleMarkRead(n._id)}
+                            className={`flex items-start gap-3 px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors ${!n.read ? "bg-amber-50/50" : ""}`}>
+                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                              n.type === "payment" ? "bg-emerald-500" :
+                              n.type === "class"   ? "bg-blue-500" :
+                              n.type === "alert"   ? "bg-red-500" :
+                              n.type === "member"  ? "bg-violet-500" : "bg-gray-400"
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs text-gray-800 ${!n.read ? "font-semibold" : "font-medium"}`}>{n.title}</p>
+                              <p className="text-[10px] text-gray-500 truncate mt-0.5">{n.message}</p>
+                            </div>
+                            <span className="text-[10px] text-gray-400 whitespace-nowrap">{fmtTime(n.createdAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="px-4 py-2.5 border-t border-gray-100">
+                      <p className="text-[10px] text-gray-400 text-center">Click a notification to mark as read</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {mounted && loaded && user ? (
               <div className="relative" ref={profileRef}>
                 <button onClick={() => setProfileOpen(v => !v)}

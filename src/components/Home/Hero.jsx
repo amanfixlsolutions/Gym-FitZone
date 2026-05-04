@@ -2,57 +2,64 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api";
 
 const Hero = () => {
   const [stats, setStats] = useState({
-    years: "0",
-    members: "0",
-    trainers: "0",
-    access: "24/7"
+    years: "10", members: "5", trainers: "30", access: "24/7"
   });
+  const [realStats, setRealStats] = useState(null);
 
+  // ── Fetch real stats from backend ─────────────────────────────
   useEffect(() => {
-    // Animate Years (0 to 10)
+    const fetchStats = async () => {
+      try {
+        // Use public trainer count
+        const [trainerRes, classRes] = await Promise.all([
+          fetch(`${BASE_URL}/trainers/public?limit=1`).then(r => r.json()).catch(() => null),
+          fetch(`${BASE_URL}/classes/public?limit=1`).then(r => r.json()).catch(() => null),
+        ]);
+        const trainerCount = trainerRes?.pagination?.total || trainerRes?.data?.length || 0;
+        const classCount   = classRes?.pagination?.total   || classRes?.data?.length   || 0;
+        if (trainerCount > 0 || classCount > 0) {
+          setRealStats({ trainers: trainerCount, classes: classCount });
+        }
+      } catch { /* use defaults */ }
+    };
+    fetchStats();
+  }, []);
+
+  // ── Animate counters ───────────────────────────────────────────
+  useEffect(() => {
+    const trainerTarget = realStats?.trainers || 30;
+    const memberTarget  = 5;
+
     let yearsCount = 0;
     const yearsInterval = setInterval(() => {
       yearsCount++;
-      if (yearsCount <= 10) {
-        setStats(prev => ({ ...prev, years: yearsCount.toString() }));
-      } else {
-        clearInterval(yearsInterval);
-      }
+      if (yearsCount <= 10) setStats(p => ({ ...p, years: yearsCount.toString() }));
+      else clearInterval(yearsInterval);
     }, 50);
 
-    // Animate Members (0 to 5)
     let membersCount = 0;
     const membersInterval = setInterval(() => {
       membersCount++;
-      if (membersCount <= 5) {
-        setStats(prev => ({ ...prev, members: membersCount.toString() }));
-      } else {
-        clearInterval(membersInterval);
-      }
+      if (membersCount <= memberTarget) setStats(p => ({ ...p, members: membersCount.toString() }));
+      else clearInterval(membersInterval);
     }, 80);
 
-    // Animate Trainers (0 to 30)
     let trainersCount = 0;
+    const step = Math.max(1, Math.floor(trainerTarget / 15));
     const trainersInterval = setInterval(() => {
-      trainersCount += 2;
-      if (trainersCount <= 30) {
-        setStats(prev => ({ ...prev, trainers: trainersCount.toString() }));
-      } else {
-        setStats(prev => ({ ...prev, trainers: "30" }));
-        clearInterval(trainersInterval);
-      }
+      trainersCount += step;
+      if (trainersCount <= trainerTarget) setStats(p => ({ ...p, trainers: trainersCount.toString() }));
+      else { setStats(p => ({ ...p, trainers: trainerTarget.toString() })); clearInterval(trainersInterval); }
     }, 40);
 
-    // Cleanup intervals
-    return () => {
-      clearInterval(yearsInterval);
-      clearInterval(membersInterval);
-      clearInterval(trainersInterval);
-    };
-  }, []);
+    return () => { clearInterval(yearsInterval); clearInterval(membersInterval); clearInterval(trainersInterval); };
+  }, [realStats]);
 
   return (
     <section 
@@ -97,12 +104,12 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-7 justify-center px-4">
-              <button className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 md:px-8 py-2.5 md:py-3 rounded-full font-semibold hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 flex items-center gap-2 justify-center group text-sm md:text-base animate-scale-pop hover:scale-105 active:scale-95" style={{ animationDelay: '0.3s' }}>
+              <Link href="/login" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 md:px-8 py-2.5 md:py-3 rounded-full font-semibold hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 flex items-center gap-2 justify-center group text-sm md:text-base animate-scale-pop hover:scale-105 active:scale-95" style={{ animationDelay: '0.3s' }}>
                 JOIN FREE <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-              </button>
-              <button className="border-2 border-amber-400 text-amber-400 px-5 md:px-8 py-2.5 md:py-3 rounded-full font-semibold hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all duration-300 text-sm md:text-base animate-scale-pop hover:scale-105 active:scale-95" style={{ animationDelay: '0.4s' }}>
+              </Link>
+              <Link href="/membership" className="border-2 border-amber-400 text-amber-400 px-5 md:px-8 py-2.5 md:py-3 rounded-full font-semibold hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all duration-300 text-sm md:text-base animate-scale-pop hover:scale-105 active:scale-95 flex items-center justify-center" style={{ animationDelay: '0.4s' }}>
                 START NOW »
-              </button>
+              </Link>
             </div>
 
             {/* Stats Section - Dynamic Numbers */}
