@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ── Backend base for resolving relative photo URLs ─────────────────
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api").replace(/\/api$/, "");
 const resolvePhoto = (p) => {
   if (!p) return "";
   if (p.startsWith("http://") || p.startsWith("https://")) return p;

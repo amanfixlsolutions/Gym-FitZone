@@ -23,7 +23,7 @@ const EMPTY_FORM = {
   photo: "", photoPreview: "",
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "https://fitzone-backend-vis3.onrender.com";
 
 // Resolve image URL — handles both Cloudinary URLs and local paths
 const resolvePhoto = (photo) => {

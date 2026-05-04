@@ -1,13 +1,14 @@
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard, BarChart3,
   Bell, UserCheck, ClipboardList, QrCode, Megaphone,
-  FileText, ArrowLeftRight, PieChart, Package,
+  FileText, ArrowLeftRight, PieChart, Package, Video,
 } from "lucide-react";
 
 export const GYM_OWNER_NAV = [
   { icon: LayoutDashboard, label: "Dashboard",     href: "/gym-owner" },
   { icon: Users,           label: "My Members",    href: "/gym-owner/members",  badge: 8 },
   { icon: CalendarCheck,   label: "Classes",       href: "/gym-owner/classes" },
+  { icon: Video,           label: "Live Classes",  href: "/gym-owner/live-classes" },
   { icon: UserCheck,       label: "Trainers",      href: "/gym-owner/trainers" },
   { icon: QrCode,          label: "Attendance",    href: "/gym-owner/attendance" },
   {

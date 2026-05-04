@@ -63,7 +63,7 @@ export default function RoleDashboardLayout({
         const { io } = await import("socket.io-client");
         const token = typeof window !== "undefined" ? localStorage.getItem("fitzone_token") : null;
         if (!token) return;
-        const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api").replace(/\/api$/, "");
         socket = io(BACKEND, {
           auth: { token },
           transports: ["websocket", "polling"],

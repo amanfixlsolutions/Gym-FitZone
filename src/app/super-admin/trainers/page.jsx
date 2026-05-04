@@ -33,7 +33,7 @@ const EMPTY_FORM = {
 // DB stores either a full URL (https://res.cloudinary.com/...) or a
 // relative path (/uploads/trainers/...). Prepend backend origin for
 // relative paths so the browser can actually fetch the file.
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api")
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api")
   .replace(/\/api$/, "");
 
 const resolvePhoto = (photo) => {

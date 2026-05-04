@@ -1,19 +1,19 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { attendanceAPI } from "@/lib/api";
-import { CheckCircle, XCircle, QrCode, Phone, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Phone, Loader2, Dumbbell } from "lucide-react";
 
-// ── Inner component that uses useSearchParams ──────────────────────
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api";
+
 function CheckinForm() {
-  const searchParams = useSearchParams();
-  const gymId   = searchParams.get("gym")  || "";
-  const gymName = searchParams.get("name") || "Your Gym";
+  const params  = useSearchParams();
+  const gymId   = params.get("gym")  || "";
+  const gymName = params.get("name") || "Your Gym";
 
-  const [phone,   setPhone]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result,  setResult]  = useState(null); // { success, message, alreadyIn, member }
-  const [error,   setError]   = useState("");
+  const [phone,    setPhone]    = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [result,   setResult]   = useState(null); // { success, message, member, alreadyIn }
+  const [error,    setError]    = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,128 +23,126 @@ function CheckinForm() {
     setResult(null);
 
     try {
-      const res = await attendanceAPI.qrCheckin({ gymId, phone: phone.trim() });
-      setResult(res);
-    } catch (err) {
-      setError(err.message || "Check-in failed. Please try again.");
+      const res = await fetch(`${BASE_URL}/attendance/qr-checkin`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ gymId, phone: phone.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Check-in failed. Please try again.");
+      } else {
+        setResult(data);
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-reset after 8 seconds so next member can use it
-  useEffect(() => {
-    if (result) {
-      const t = setTimeout(() => { setResult(null); setPhone(""); setError(""); }, 8000);
-      return () => clearTimeout(t);
-    }
-  }, [result]);
+  // ── Success screen ─────────────────────────────────────────────
+  if (result?.success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 ${result.alreadyIn ? "bg-amber-100" : "bg-emerald-100"}`}>
+            <CheckCircle size={40} className={result.alreadyIn ? "text-amber-500" : "text-emerald-500"} />
+          </div>
+          <h1 className="text-2xl font-black text-gray-800 mb-2">
+            {result.alreadyIn ? "Already Checked In!" : "Welcome! ✓"}
+          </h1>
+          <p className="text-lg font-bold text-blue-600 mb-1">{result.member?.name}</p>
+          <p className="text-sm text-gray-500 mb-4">{result.member?.planName || "Member"}</p>
+          <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">{result.message}</p>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
+            <Dumbbell size={14} className="text-blue-500" />
+            <span>FitZone · {gymName}</span>
+          </div>
+
+          <button
+            onClick={() => { setResult(null); setPhone(""); }}
+            className="mt-4 w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Check in another member
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
 
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-            <QrCode size={40} className="text-white" />
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <Dumbbell size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white">FitZone</h1>
-          <p className="text-blue-200 text-sm mt-1">{gymName}</p>
+          <h1 className="text-xl font-black text-white">FitZone Check-in</h1>
+          <p className="text-blue-200 text-sm mt-1">{decodeURIComponent(gymName)}</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        {/* Form */}
+        <div className="px-6 py-7">
+          <p className="text-sm text-gray-600 text-center mb-5">
+            Enter your registered phone number to mark your attendance
+          </p>
 
-          {/* Success state */}
-          {result?.success && !result?.alreadyIn && (
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={44} className="text-emerald-500" />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                Phone Number
+              </label>
+              <div className="relative">
+                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                />
               </div>
-              <h2 className="text-xl font-black text-gray-800">Welcome!</h2>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{result.member?.name}</p>
-              <p className="text-gray-500 text-sm mt-1">{result.member?.planName}</p>
-              <div className="mt-4 bg-emerald-50 rounded-2xl px-4 py-3">
-                <p className="text-emerald-700 font-semibold text-sm">✓ Attendance Marked!</p>
-                <p className="text-emerald-600 text-xs mt-0.5">
-                  {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              <p className="text-gray-400 text-xs mt-4">This screen resets in 8 seconds</p>
             </div>
-          )}
 
-          {/* Already checked in */}
-          {result?.alreadyIn && (
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={44} className="text-amber-500" />
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600">{error}</p>
               </div>
-              <h2 className="text-xl font-black text-gray-800">{result.member?.name}</h2>
-              <div className="mt-4 bg-amber-50 rounded-2xl px-4 py-3">
-                <p className="text-amber-700 font-semibold text-sm">Already checked in today!</p>
-              </div>
-              <p className="text-gray-400 text-xs mt-4">This screen resets in 8 seconds</p>
-            </div>
-          )}
+            )}
 
-          {/* Form state */}
-          {!result && (
-            <div className="p-8">
-              <h2 className="text-xl font-black text-gray-800 text-center mb-1">Check In</h2>
-              <p className="text-gray-500 text-sm text-center mb-6">Enter your registered phone number</p>
+            <button
+              type="submit"
+              disabled={loading || !phone.trim()}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg disabled:opacity-60 transition-all flex items-center justify-center gap-2"
+            >
+              {loading
+                ? <><Loader2 size={18} className="animate-spin" /> Verifying...</>
+                : <><CheckCircle size={18} /> Mark Attendance</>}
+            </button>
+          </form>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="relative">
-                  <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    autoFocus
-                    required
-                    className="w-full pl-12 pr-4 py-4 text-base border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 text-gray-800 placeholder:text-gray-400 transition-colors"
-                  />
-                </div>
-
-                {error && (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-                    <XCircle size={16} className="text-red-500 flex-shrink-0" />
-                    <p className="text-red-600 text-sm">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !phone.trim()}
-                  className="w-full py-4 bg-blue-600 text-white font-bold text-base rounded-2xl hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading
-                    ? <><Loader2 size={20} className="animate-spin" /> Verifying...</>
-                    : "Mark Attendance"}
-                </button>
-              </form>
-
-              <p className="text-center text-gray-400 text-xs mt-5">
-                Only registered members of this gym can check in
-              </p>
-            </div>
-          )}
+          <p className="text-[10px] text-gray-400 text-center mt-4">
+            Only registered members of this gym can check in.
+            Your phone number must match your membership record.
+          </p>
         </div>
-
-        <p className="text-center text-blue-200/60 text-xs mt-6">Powered by FitZone</p>
       </div>
     </div>
   );
 }
 
-// ── Page wrapper with Suspense (required for useSearchParams) ──────
 export default function CheckinPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center">
         <Loader2 size={40} className="text-white animate-spin" />
       </div>
     }>

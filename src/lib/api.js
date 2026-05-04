@@ -3,7 +3,7 @@
  * Centralized fetch wrapper — reads NEXT_PUBLIC_API_URL from .env.local
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api";
 
 // ── Token helpers ──────────────────────────────────────────────────
 const getToken = () => {
@@ -176,17 +176,19 @@ export const memberAPI = {
 
 // ── Trainer APIs ───────────────────────────────────────────────────
 export const trainerAPI = {
-  getAll:  (params = {}) => api.get(`/trainers?${new URLSearchParams(params)}`),
-  getOne:  (id)          => api.get(`/trainers/${id}`),
-  create:  (data)        => api.post("/trainers", data),
-  update:  (id, data)    => api.put(`/trainers/${id}`, data),
-  delete:  (id)          => api.delete(`/trainers/${id}`),
-  verify:  (id)          => api.post(`/trainers/${id}/verify`, {}),
+  getAll:   (params = {}) => api.get(`/trainers?${new URLSearchParams(params)}`),
+  getPublic:(params = {}) => api.get(`/trainers/public?${new URLSearchParams(params)}`),
+  getOne:   (id)          => api.get(`/trainers/${id}`),
+  create:   (data)        => api.post("/trainers", data),
+  update:   (id, data)    => api.put(`/trainers/${id}`, data),
+  delete:   (id)          => api.delete(`/trainers/${id}`),
+  verify:   (id)          => api.post(`/trainers/${id}/verify`, {}),
 };
 
 // ── Class APIs ─────────────────────────────────────────────────────
 export const classAPI = {
   getAll:    (params = {}) => api.get(`/classes?${new URLSearchParams(params)}`),
+  getPublic: (params = {}) => api.get(`/classes/public?${new URLSearchParams(params)}`),
   getOne:    (id)          => api.get(`/classes/${id}`),
   getToday:  ()            => api.get("/classes/today"),
   create:    (data)        => api.post("/classes", data),
@@ -207,12 +209,13 @@ export const attendanceAPI = {
 
 // ── Plan APIs ──────────────────────────────────────────────────────
 export const planAPI = {
-  getAll:  (params = {}) => api.get(`/plans?${new URLSearchParams(params)}`),
-  getOne:  (id)          => api.get(`/plans/${id}`),
-  create:  (data)        => api.post("/plans", data),
-  update:  (id, data)    => api.put(`/plans/${id}`, data),
-  toggle:  (id)          => api.patch(`/plans/${id}/toggle`, {}),
-  delete:  (id)          => api.delete(`/plans/${id}`),
+  getAll:   (params = {}) => api.get(`/plans?${new URLSearchParams(params)}`),
+  getPublic:(params = {}) => api.get(`/plans/public?${new URLSearchParams(params)}`),
+  getOne:   (id)          => api.get(`/plans/${id}`),
+  create:   (data)        => api.post("/plans", data),
+  update:   (id, data)    => api.put(`/plans/${id}`, data),
+  toggle:   (id)          => api.patch(`/plans/${id}/toggle`, {}),
+  delete:   (id)          => api.delete(`/plans/${id}`),
 };
 
 // ── Payment APIs ───────────────────────────────────────────────────
@@ -333,4 +336,26 @@ export const uploadAPI = {
 export const systemAPI = {
   health:  ()            => api.get("/system/health"),
   logs:    (params = {}) => api.get(`/system/logs?${new URLSearchParams(params)}`),
+};
+
+// ── Live Class APIs ────────────────────────────────────────────────
+export const liveClassAPI = {
+  // Gym Owner
+  getAll:      (params = {}) => api.get(`/live-classes?${new URLSearchParams(params)}`),
+  getOne:      (id)          => api.get(`/live-classes/${id}`),
+  create:      (data)        => api.post("/live-classes", data),
+  update:      (id, data)    => api.put(`/live-classes/${id}`, data),
+  delete:      (id)          => api.delete(`/live-classes/${id}`),
+  start:       (id)          => api.post(`/live-classes/${id}/start`, {}),
+  complete:    (id)          => api.post(`/live-classes/${id}/complete`, {}),
+  cancel:      (id, reason)  => api.post(`/live-classes/${id}/cancel`, { reason }),
+  getBookings: (id, p = {})  => api.get(`/live-classes/${id}/bookings?${new URLSearchParams(p)}`),
+  analytics:   ()            => api.get("/live-classes/analytics"),
+  // Member
+  getUpcoming: (params = {}) => api.get(`/live-classes/upcoming?${new URLSearchParams(params)}`),
+  book:        (id)          => api.post(`/live-classes/${id}/book`, {}),
+  verifyPayment:(id, data)   => api.post(`/live-classes/${id}/verify-payment`, data),
+  join:        (id)          => api.post(`/live-classes/${id}/join`, {}),
+  history:     (params = {}) => api.get(`/live-classes/member/history?${new URLSearchParams(params)}`),
+  spending:    (params = {}) => api.get(`/live-classes/member/spending?${new URLSearchParams(params)}`),
 };
