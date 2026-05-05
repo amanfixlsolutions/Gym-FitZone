@@ -265,9 +265,32 @@ export default function Page() {
                           Start →
                         </a>
                       </div>
+                    ) : (lc.status === "scheduled" || lc.status === "live") ? (
+                      <button
+                        onClick={async () => {
+                          setActioning(lc._id + "_zoom");
+                          try {
+                            const res = await liveClassAPI.regenerateZoom(lc._id);
+                            showSuccess("Zoom link generated!");
+                            fetchData();
+                          } catch (err) {
+                            showError(err.message || "Failed to generate Zoom link");
+                          } finally {
+                            setActioning(null);
+                          }
+                        }}
+                        disabled={actioning === lc._id + "_zoom"}
+                        className="w-full py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60"
+                      >
+                        {actioning === lc._id + "_zoom"
+                          ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                          : <Video size={11} />
+                        }
+                        Generate Zoom Link
+                      </button>
                     ) : (
-                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
-                        <p className="text-[10px] text-amber-600 font-semibold">⚠️ No Zoom link — check Render env vars</p>
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5">
+                        <p className="text-[10px] text-gray-400">No Zoom link</p>
                       </div>
                     )}
 

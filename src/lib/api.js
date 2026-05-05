@@ -360,4 +360,5 @@ export const liveClassAPI = {
   join:        (id)          => api.post(`/live-classes/${id}/join`, {}),
   history:     (params = {}) => api.get(`/live-classes/member/history?${new URLSearchParams(params)}`),
   spending:    (params = {}) => api.get(`/live-classes/member/spending?${new URLSearchParams(params)}`),
+  regenerateZoom: (id) => api.post(`/live-classes/${id}/regenerate-zoom`, {}),
 };
