@@ -119,14 +119,14 @@ export default function Page() {
   };
 
   const handleComplete = async (lc) => {
-    const confirmed = await confirmToast(`Mark "${lc.title}" as completed?`);
+    const confirmed = await confirmToast(`End "${lc.title}"? This will mark the class as completed and close the Zoom meeting.`);
     if (!confirmed) return;
     setActioning(lc._id + "_complete");
     try {
       await liveClassAPI.complete(lc._id);
-      showSuccess("Class marked as completed!");
+      showSuccess("Class ended and marked as completed!");
       fetchData();
-    } catch (err) { showError(err.message || "Failed"); }
+    } catch (err) { showError(err.message || "Failed to end class"); }
     finally { setActioning(null); }
   };
 
@@ -256,42 +256,50 @@ export default function Page() {
                       </div>
                     </div>
 
-                    {/* Zoom link status */}
-                    {lc.zoomJoinUrl ? (
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1.5 flex items-center justify-between">
-                        <p className="text-[10px] text-blue-600 font-semibold">✅ Zoom meeting ready</p>
-                        <a href={lc.zoomStartUrl || lc.zoomJoinUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-blue-700 font-bold hover:underline">
-                          Start →
-                        </a>
-                      </div>
-                    ) : (lc.status === "scheduled" || lc.status === "live") ? (
-                      <button
-                        onClick={async () => {
-                          setActioning(lc._id + "_zoom");
-                          try {
-                            const res = await liveClassAPI.regenerateZoom(lc._id);
-                            showSuccess("Zoom link generated!");
-                            fetchData();
-                          } catch (err) {
-                            showError(err.message || "Failed to generate Zoom link");
-                          } finally {
-                            setActioning(null);
+                    {/* Zoom link status — only for active classes */}
+                    {(lc.status === "scheduled" || lc.status === "live") && (
+                      lc.zoomJoinUrl ? (
+                        <div className={`rounded-lg px-3 py-1.5 flex items-center justify-between ${
+                          lc.status === "live"
+                            ? "bg-red-50 dark:bg-red-900/20"
+                            : "bg-blue-50 dark:bg-blue-900/20"
+                        }`}>
+                          <p className={`text-[10px] font-semibold ${lc.status === "live" ? "text-red-600" : "text-blue-600"}`}>
+                            {lc.status === "live" ? "🔴 Class is LIVE" : "✅ Zoom meeting ready"}
+                          </p>
+                          <a
+                            href={lc.zoomStartUrl || lc.zoomJoinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`text-[10px] font-bold hover:underline ${lc.status === "live" ? "text-red-700" : "text-blue-700"}`}
+                          >
+                            {lc.status === "live" ? "Host →" : "Start →"}
+                          </a>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            setActioning(lc._id + "_zoom");
+                            try {
+                              await liveClassAPI.regenerateZoom(lc._id);
+                              showSuccess("Zoom link generated!");
+                              fetchData();
+                            } catch (err) {
+                              showError(err.message || "Failed to generate Zoom link");
+                            } finally {
+                              setActioning(null);
+                            }
+                          }}
+                          disabled={actioning === lc._id + "_zoom"}
+                          className="w-full py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60"
+                        >
+                          {actioning === lc._id + "_zoom"
+                            ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                            : <Video size={11} />
                           }
-                        }}
-                        disabled={actioning === lc._id + "_zoom"}
-                        className="w-full py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60"
-                      >
-                        {actioning === lc._id + "_zoom"
-                          ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
-                          : <Video size={11} />
-                        }
-                        Generate Zoom Link
-                      </button>
-                    ) : (
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5">
-                        <p className="text-[10px] text-gray-400">No Zoom link</p>
-                      </div>
+                          Generate Zoom Link
+                        </button>
+                      )
                     )}
 
                     {/* Actions */}
@@ -306,7 +314,8 @@ export default function Page() {
                       {lc.status === "live" && (
                         <button onClick={() => handleComplete(lc)} disabled={isActing}
                           className="flex-1 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60">
-                          <CheckCircle size={12} /> End Class
+                          {isActing ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle size={12} />}
+                          End Class
                         </button>
                       )}
                       <button onClick={() => openBookings(lc)}
