@@ -51,11 +51,31 @@ export function AuthProvider({ children }) {
       const tryRefresh = async () => {
         const refreshTok = localStorage.getItem("fitzone_refresh");
         if (!refreshTok) return false;
+
+        // Get current user ID before refresh to validate identity
+        const currentUserId = (() => {
+          try {
+            const cached = localStorage.getItem(USER_KEY);
+            return cached ? JSON.parse(cached)?._id : null;
+          } catch { return null; }
+        })();
+
         try {
           const refreshData = await authAPI.refreshToken();
-          if (refreshData.accessToken) saveToken(refreshData.accessToken);
+          if (!refreshData.accessToken) return false;
+          saveToken(refreshData.accessToken);
+
           const meData = await authAPI.getMe();
-          const normalized = saveUser(meData.user);
+          const freshUser = meData.user;
+
+          // ── Identity check — if user changed, reject the session ──
+          if (currentUserId && freshUser._id !== currentUserId) {
+            removeToken();
+            setUser(null);
+            return false;
+          }
+
+          const normalized = saveUser(freshUser);
           setUser(normalized);
           return true;
         } catch {
@@ -122,10 +142,21 @@ export function AuthProvider({ children }) {
 
   // ── Silent refresh ─────────────────────────────────────────────
   const refreshSession = useCallback(async () => {
+    const currentUserId = user?._id;
     try {
       const data = await authAPI.refreshToken();
-      if (data.accessToken) saveToken(data.accessToken);
+      if (!data.accessToken) throw new Error("No token");
+      saveToken(data.accessToken);
+
       const me = await authAPI.getMe();
+
+      // Identity check — if user changed, force logout
+      if (currentUserId && me.user._id !== currentUserId) {
+        removeToken();
+        setUser(null);
+        return false;
+      }
+
       const normalized = saveUser(me.user);
       setUser(normalized);
       return true;
@@ -134,7 +165,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       return false;
     }
-  }, []);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, loaded, loginUser, logoutUser, refreshSession }}>

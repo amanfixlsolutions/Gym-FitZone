@@ -41,7 +41,27 @@ const refreshAccessToken = async () => {
   const data = await res.json();
   if (!res.ok || !data.accessToken) throw new Error("Refresh failed");
 
+  // ── Identity check — backend now returns userId ────────────────
+  // Verify the refreshed token belongs to the SAME user currently logged in
+  if (data.userId && typeof window !== "undefined") {
+    const currentUser = (() => {
+      try { return JSON.parse(localStorage.getItem("fitzone_user") || "null"); } catch { return null; }
+    })();
+
+    if (currentUser?._id && String(data.userId) !== String(currentUser._id)) {
+      // Refresh token belongs to a different user — clear and force re-login
+      localStorage.removeItem("fitzone_token");
+      localStorage.removeItem("fitzone_refresh");
+      localStorage.removeItem("fitzone_user");
+      throw new Error("Session mismatch — please log in again");
+    }
+  }
+
   saveToken(data.accessToken);
+  // Rotate refresh token if backend sends a new one
+  if (data.refreshToken && typeof window !== "undefined") {
+    localStorage.setItem("fitzone_refresh", data.refreshToken);
+  }
   return data.accessToken;
 };
 
