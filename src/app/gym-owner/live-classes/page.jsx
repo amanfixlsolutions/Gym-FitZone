@@ -256,10 +256,18 @@ export default function Page() {
                       </div>
                     </div>
 
-                    {/* Zoom link */}
-                    {lc.zoomJoinUrl && (
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1.5">
-                        <p className="text-[10px] text-blue-600 font-semibold">Zoom meeting created ✓</p>
+                    {/* Zoom link status */}
+                    {lc.zoomJoinUrl ? (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1.5 flex items-center justify-between">
+                        <p className="text-[10px] text-blue-600 font-semibold">✅ Zoom meeting ready</p>
+                        <a href={lc.zoomStartUrl || lc.zoomJoinUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-blue-700 font-bold hover:underline">
+                          Start →
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
+                        <p className="text-[10px] text-amber-600 font-semibold">⚠️ No Zoom link — check Render env vars</p>
                       </div>
                     )}
 
