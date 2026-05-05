@@ -46,20 +46,6 @@ export function AuthProvider({ children }) {
   // ── Restore session on mount ───────────────────────────────────
   useEffect(() => {
     const restore = async () => {
-      // Clear stale cache if gym is still an object (old format)
-      try {
-        const cached = localStorage.getItem(USER_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed?.gym && typeof parsed.gym === "object") {
-            // Old format — clear it, will re-fetch from backend
-            localStorage.removeItem(USER_KEY);
-          } else {
-            setUser(parsed);
-          }
-        }
-      } catch {}
-
       const token = getToken();
 
       const tryRefresh = async () => {
@@ -85,6 +71,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
+        // Always fetch fresh user from backend — never trust localStorage cache alone
         const data = await authAPI.getMe();
         const normalized = saveUser(data.user);
         setUser(normalized);
@@ -102,6 +89,10 @@ export function AuthProvider({ children }) {
 
   // ── Login ──────────────────────────────────────────────────────
   const loginUser = useCallback(async (email, password) => {
+    // Clear any existing session first — prevents stale tokens from
+    // a previous user (e.g. admin) bleeding into the new session
+    removeToken();
+
     const data = await authAPI.login(email, password);
 
     if (data.accessToken) {

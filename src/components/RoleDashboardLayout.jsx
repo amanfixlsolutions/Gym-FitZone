@@ -194,7 +194,16 @@ export default function RoleDashboardLayout({
 
   useEffect(() => {
     if (loaded && !user) router.push("/login");
-  }, [loaded, user, router]);
+    // ── Role guard — redirect if wrong role ──────────────────────
+    if (loaded && user && role && user.role !== role) {
+      const redirectMap = {
+        "super-admin": "/super-admin",
+        "gym-owner":   "/gym-owner",
+        "member":      "/",
+      };
+      router.replace(redirectMap[user.role] || "/login");
+    }
+  }, [loaded, user, router, role]);
 
   const userName   = user?.name   || _userName   || "User";
   const userEmail  = user?.email  || _userEmail  || "";
