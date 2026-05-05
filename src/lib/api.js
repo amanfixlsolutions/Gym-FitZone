@@ -247,8 +247,10 @@ export const notificationAPI = {
 
 // ── Settings APIs ──────────────────────────────────────────────────
 export const settingsAPI = {
-  get:    () => api.get("/settings"),
-  update: (data) => api.put("/settings", data),
+  get:           () => api.get("/settings"),
+  update:        (data) => api.put("/settings", data),
+  getPublic:     () => api.get("/settings/public"),
+  submitContact: (data) => api.post("/settings/contact", data),
 };
 
 // ── Zoom APIs ──────────────────────────────────────────────────────

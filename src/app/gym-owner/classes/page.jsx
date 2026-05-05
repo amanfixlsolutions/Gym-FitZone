@@ -1,27 +1,42 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import RoleDashboardLayout from "@/components/RoleDashboardLayout";
 import { GYM_OWNER_NAV } from "@/lib/gymOwnerNav";
 import { useAuth } from "@/context/AuthContext";
-import { classAPI, trainerAPI } from "@/lib/api";
+import { classAPI, trainerAPI, uploadAPI } from "@/lib/api";
 import { confirmToast, showSuccess, showError } from "@/lib/toast";
-import { Plus, Clock, Users, Edit2, Trash2, CalendarCheck, X, Check, RefreshCw, AlertCircle } from "lucide-react";
+import { Plus, Clock, Users, Edit2, Trash2, CalendarCheck, X, Check, RefreshCw, AlertCircle, ImagePlus, Loader2 } from "lucide-react";
 
 const DAYS_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const EMPTY_FORM = { name: "", trainer: "", trainerId: "", startTime: "06:00", endTime: "07:00", capacity: "", price: "", priceType: "included", days: [], description: "" };
+const EMPTY_FORM = {
+  name: "", trainer: "", trainerId: "", startTime: "06:00", endTime: "07:00",
+  capacity: "", price: "", priceType: "included", days: [], description: "",
+  level: "All Levels", intensity: "", calories: "", image: "",
+};
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "https://fitzone-backend-vis3.onrender.com";
+
+const resolveImage = (img) => {
+  if (!img) return null;
+  if (img.startsWith("http")) return img;
+  return `${BASE_URL}/${img.replace(/^\//, "")}`;
+};
 
 export default function Page() {
   const { user } = useAuth();
 
-  const [classes,   setClasses]   = useState([]);
-  const [trainers,  setTrainers]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editId,    setEditId]    = useState(null);
-  const [form,      setForm]      = useState(EMPTY_FORM);
-  const [saving,    setSaving]    = useState(false);
-  const [success,   setSuccess]   = useState(false);
+  const [classes,       setClasses]       = useState([]);
+  const [trainers,      setTrainers]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
+  const [showModal,     setShowModal]     = useState(false);
+  const [editId,        setEditId]        = useState(null);
+  const [form,          setForm]          = useState(EMPTY_FORM);
+  const [saving,        setSaving]        = useState(false);
+  const [success,       setSuccess]       = useState(false);
+  const [imgUploading,  setImgUploading]  = useState(false);
+  const [imgPreview,    setImgPreview]    = useState(null);
+  const fileInputRef = useRef(null);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const toggleDay = (d) => setForm(p => ({ ...p, days: p.days.includes(d) ? p.days.filter(x => x !== d) : [...p.days, d] }));
@@ -48,22 +63,63 @@ export default function Page() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setError(""); setShowModal(true); };
+  const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setImgPreview(null); setError(""); setShowModal(true); };
   const openEdit = (c) => {
     setEditId(c._id);
     setForm({
-      name:      c.name,
-      trainer:   c.trainerName || "",
-      trainerId: c.trainer?._id || c.trainer || "",
-      startTime: c.startTime || "06:00",
-      endTime:   c.endTime   || "07:00",
-      capacity:  String(c.capacity),
-      price:     c.isPaid ? String(c.price) : "",
-      priceType: c.isPaid ? "paid" : "included",
-      days:      c.days || [],
+      name:        c.name,
+      trainer:     c.trainerName || "",
+      trainerId:   c.trainer?._id || c.trainer || "",
+      startTime:   c.startTime || "06:00",
+      endTime:     c.endTime   || "07:00",
+      capacity:    String(c.capacity),
+      price:       c.isPaid ? String(c.price) : "",
+      priceType:   c.isPaid ? "paid" : "included",
+      days:        c.days || [],
       description: c.description || "",
+      level:       c.level || "All Levels",
+      intensity:   c.intensity || "",
+      calories:    c.calories || "",
+      image:       c.image || "",
     });
+    setImgPreview(resolveImage(c.image) || null);
     setError(""); setShowModal(true);
+  };
+
+  // ── Image upload handler ───────────────────────────────────────
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type only — no size limit
+    if (!file.type.startsWith("image/")) {
+      showError("Please select an image file.");
+      return;
+    }
+
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setImgPreview(ev.target.result);
+    reader.readAsDataURL(file);
+
+    // Upload to backend
+    setImgUploading(true);
+    try {
+      const res = await uploadAPI.upload(file, "classes");
+      set("image", res.data?.url || "");
+      showSuccess("Image uploaded!");
+    } catch (err) {
+      showError(err.message || "Image upload failed");
+      setImgPreview(null);
+    } finally {
+      setImgUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    set("image", "");
+    setImgPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // ── Submit (create or update) ──────────────────────────────────
@@ -86,6 +142,10 @@ export default function Page() {
       price:       form.priceType === "paid" ? Number(form.price) || 0 : 0,
       days:        form.days,
       description: form.description,
+      level:       form.level,
+      intensity:   form.intensity,
+      calories:    form.calories,
+      image:       form.image,
       status:      "Active",
     };
 
@@ -189,15 +249,33 @@ export default function Page() {
               const priceStr = c.isPaid ? `₹${c.price}/class` : "Included";
 
               return (
-                <div key={c._id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 hover:shadow-md transition-shadow">
+              <div key={c._id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                  {/* Class image */}
+                  {c.image && (
+                    <div className="relative h-36 overflow-hidden">
+                      <img
+                        src={resolveImage(c.image)}
+                        alt={c.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.style.display = "none"; e.target.parentElement.style.display = "none"; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <span className={`absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full ${c.status === "Active" ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}>
+                        {c.status}
+                      </span>
+                    </div>
+                  )}
+                  <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold text-[var(--text)]">{c.name}</h3>
                       <p className="text-xs text-[var(--muted)] mt-0.5">{trainerName}</p>
                     </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${c.status === "Active" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
-                      {c.status}
-                    </span>
+                    {!c.image && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${c.status === "Active" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                        {c.status}
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5 mb-4">
                     <div className="flex items-center gap-2 text-xs text-[var(--muted)]"><Clock size={12} />{timeStr}</div>
@@ -221,6 +299,7 @@ export default function Page() {
                     </div>
                   </div>
                 </div>
+              </div>
               );
             })}
           </div>
@@ -236,7 +315,7 @@ export default function Page() {
                 <h2 className="text-lg font-bold text-[var(--text)]">{editId ? "Edit Class" : "Add New Class"}</h2>
                 <p className="text-xs text-[var(--muted)] mt-0.5">{editId ? "Update class details" : "Schedule a new class"}</p>
               </div>
-              <button onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setError(""); }} className="p-2 hover:bg-[var(--surface2)] rounded-lg">
+              <button onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setImgPreview(null); setError(""); }} className="p-2 hover:bg-[var(--surface2)] rounded-lg">
                 <X size={18} className="text-[var(--muted)]" />
               </button>
             </div>
@@ -330,8 +409,79 @@ export default function Page() {
                     className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
                 </div>
 
+                {/* ── Image Upload ── */}
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Class Image (optional)</label>
+                  {imgPreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-[var(--border)] group">
+                      <img src={imgPreview} alt="Class preview" className="w-full h-40 object-cover" />
+                      {imgUploading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 size={24} className="text-white animate-spin" />
+                        </div>
+                      )}
+                      {!imgUploading && (
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={imgUploading}
+                      className="w-full h-32 border-2 border-dashed border-[var(--border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-[var(--muted)] disabled:opacity-50"
+                    >
+                      {imgUploading ? (
+                        <Loader2 size={22} className="animate-spin text-blue-500" />
+                      ) : (
+                        <ImagePlus size={22} className="text-blue-400" />
+                      )}
+                      <span className="text-xs font-medium">
+                        {imgUploading ? "Uploading..." : "Click to upload image"}
+                      </span>
+                      <span className="text-[10px] text-[var(--muted2)]">JPG, PNG, WEBP · Any size</span>
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
+                </div>
+
+                {/* ── Extra fields: Level, Intensity, Calories ── */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Level</label>
+                    <select value={form.level} onChange={e => set("level", e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                      {["All Levels","Beginner","Intermediate","Advanced","Expert"].map(l => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Intensity</label>
+                    <input type="text" placeholder="e.g. High" value={form.intensity} onChange={e => set("intensity", e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Calories</label>
+                    <input type="text" placeholder="e.g. 400 cal" value={form.calories} onChange={e => set("calories", e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setError(""); }}
+                  <button type="button" onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setImgPreview(null); setError(""); }}
                     className="flex-1 py-2.5 border border-[var(--border)] text-[var(--text)] font-medium rounded-xl hover:bg-[var(--surface2)] transition-colors text-sm">
                     Cancel
                   </button>

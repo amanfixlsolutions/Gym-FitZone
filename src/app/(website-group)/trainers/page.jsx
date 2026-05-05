@@ -1,5 +1,5 @@
 ﻿"use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Star, ChevronLeft, ChevronRight, Award, Clock, Users, Calendar, X, RefreshCw } from "lucide-react";
 import { FaFacebook, FaInstagram, FaTwitter } from "react-icons/fa";
 import { trainerAPI } from "@/lib/api";
@@ -30,6 +30,9 @@ export default function TrainersPage() {
   const [isTablet,     setIsTablet]     = useState(false);
   const [selected,     setSelected]     = useState(null);
   const [page,         setPage]         = useState(1);
+  
+  const timerRef = useRef(null);
+  const isHoveringRef = useRef(false);
 
   useEffect(() => {
     const resize = () => { setIsMobile(window.innerWidth < 768); setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024); };
@@ -57,6 +60,57 @@ export default function TrainersPage() {
   const totalPages   = Math.ceil(trainers.length / PER_PAGE);
   const paged        = trainers.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   const openLink     = (url, e) => { e.stopPropagation(); window.open(url, "_blank"); };
+
+  // Auto-slide timer function
+  const startAutoSlide = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (trainers.length > 0 && !loading && !isHoveringRef.current) {
+      timerRef.current = setInterval(() => {
+        setCurrentSlide((prev) => {
+          const next = prev + 1;
+          if (next > maxSlide) {
+            return 0;
+          }
+          return next;
+        });
+      }, 3000);
+    }
+  };
+
+  // Stop auto-slide
+  const stopAutoSlide = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Handle auto-slide when trainers load or maxSlide changes
+  useEffect(() => {
+    if (!loading && trainers.length > 0) {
+      startAutoSlide();
+    }
+    return () => stopAutoSlide();
+  }, [trainers.length, loading, maxSlide]);
+
+  // Handle manual slide change
+  const handleSlideChange = (newSlide) => {
+    setCurrentSlide(newSlide);
+    // Restart timer on manual interaction
+    stopAutoSlide();
+    startAutoSlide();
+  };
+
+  // Mouse enter/leave handlers for smooth pause/resume
+  const handleMouseEnter = () => {
+    isHoveringRef.current = true;
+    stopAutoSlide();
+  };
+
+  const handleMouseLeave = () => {
+    isHoveringRef.current = false;
+    startAutoSlide();
+  };
 
   // ── Normalize trainer from backend ────────────────────────────
   const norm = (t, idx) => ({
@@ -123,9 +177,13 @@ export default function TrainersPage() {
             <p className="text-center text-gray-400 py-10">No trainers available yet.</p>
           ) : (
             <>
-              <div className="relative group">
+              <div 
+                className="relative group"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
                 <div className="overflow-hidden rounded-xl">
-                  <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${currentSlide * (100 / slidesToShow)}%)` }}>
+                  <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${currentSlide * (100 / slidesToShow)}%)` }}>
                     {normTrainers.map((t, i) => (
                       <div key={i} className="flex-shrink-0 px-2" style={{ width: `${100 / slidesToShow}%` }}>
                         <div className="bg-gradient-to-br from-amber-50 to-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer" onClick={() => setSelected(t)}>
@@ -153,13 +211,13 @@ export default function TrainersPage() {
                   </div>
                 </div>
                 {!isMobile && (<>
-                  <button onClick={() => setCurrentSlide(p => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronLeft className="w-4 h-4" /></button>
-                  <button onClick={() => setCurrentSlide(p => Math.min(maxSlide, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronRight className="w-4 h-4" /></button>
+                  <button onClick={() => handleSlideChange(Math.max(0, currentSlide - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronLeft className="w-4 h-4" /></button>
+                  <button onClick={() => handleSlideChange(Math.min(maxSlide, currentSlide + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-amber-500 hover:text-white shadow-lg rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300"><ChevronRight className="w-4 h-4" /></button>
                 </>)}
               </div>
               <div className="flex justify-center gap-2 mt-5">
                 {Array.from({ length: maxSlide + 1 }).map((_, i) => (
-                  <button key={i} onClick={() => setCurrentSlide(i)} className={`h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "w-6 bg-amber-500" : "w-2 bg-gray-300 hover:bg-amber-300"}`} />
+                  <button key={i} onClick={() => handleSlideChange(i)} className={`h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "w-6 bg-amber-500" : "w-2 bg-gray-300 hover:bg-amber-300"}`} />
                 ))}
               </div>
             </>
