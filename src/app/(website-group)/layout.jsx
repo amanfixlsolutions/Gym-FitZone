@@ -174,40 +174,75 @@ export default function WebsiteLayout({ children }) {
               {zoomOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-amber-100 overflow-hidden z-50">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-indigo-600">
-                    <p className="text-sm font-bold text-white flex items-center gap-2"><Video size={15} /> Upcoming Live Classes</p>
+                    <p className="text-sm font-bold text-white flex items-center gap-2"><Video size={15} /> Live Classes</p>
                     <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">{upcomingClasses.length} upcoming</span>
                   </div>
                   {upcomingClasses.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-xs text-gray-400">No upcoming live classes</div>
+                    <div className="px-4 py-6 text-center">
+                      <Video size={24} className="text-gray-300 mx-auto mb-2" />
+                      <p className="text-xs text-gray-400 font-medium">No upcoming live classes</p>
+                      <p className="text-[10px] text-gray-300 mt-1">Check back soon!</p>
+                    </div>
                   ) : (
                     <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                      {upcomingClasses.map(lc => (
-                        <div key={lc._id} className="px-4 py-3 hover:bg-blue-50 transition-colors">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-800 truncate">{lc.title}</p>
-                              <p className="text-[10px] text-gray-500 mt-0.5">{lc.category} · {lc.duration} min</p>
-                              <p className="text-[10px] text-blue-600 font-semibold mt-0.5">📅 {fmtClassDate(lc.scheduledAt)}</p>
+                      {upcomingClasses.map(lc => {
+                        const isLive = lc.status === "live";
+                        const hasJoinUrl = !!(lc.zoomJoinUrl);
+                        return (
+                          <div key={lc._id} className={`px-4 py-3 transition-colors ${isLive ? "bg-red-50/50 hover:bg-red-50" : "hover:bg-blue-50"}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-800 truncate">{lc.title}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">{lc.category} · {lc.duration} min</p>
+                                <p className="text-[10px] text-blue-600 font-semibold mt-0.5">📅 {fmtClassDate(lc.scheduledAt)}</p>
+                              </div>
+                              <div className="flex-shrink-0 text-right">
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  isLive ? "bg-red-100 text-red-600 animate-pulse" : "bg-blue-100 text-blue-600"
+                                }`}>
+                                  {isLive ? "🔴 LIVE" : "Scheduled"}
+                                </span>
+                                <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
+                              </div>
                             </div>
-                            <div className="flex-shrink-0 text-right">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${lc.status === "live" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
-                                {lc.status === "live" ? "🔴 LIVE" : "Scheduled"}
-                              </span>
-                              <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
+                            {/* Join button — show for live classes with URL, or all classes */}
+                            <div className="mt-2 flex gap-2">
+                              {isLive && hasJoinUrl ? (
+                                <a
+                                  href={lc.zoomJoinUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setZoomOpen(false)}
+                                  className="flex-1 text-center py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                                >
+                                  <Video size={11} /> Join Now →
+                                </a>
+                              ) : isLive && !hasJoinUrl ? (
+                                <span className="flex-1 text-center py-1.5 bg-gray-100 text-gray-400 text-xs rounded-lg">
+                                  Link not available
+                                </span>
+                              ) : hasJoinUrl ? (
+                                <a
+                                  href={lc.zoomJoinUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setZoomOpen(false)}
+                                  className="flex-1 text-center py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                                >
+                                  <Video size={11} /> Open Zoom
+                                </a>
+                              ) : null}
                             </div>
                           </div>
-                          {lc.zoomJoinUrl && lc.status === "live" && (
-                            <a href={lc.zoomJoinUrl} target="_blank" rel="noopener noreferrer"
-                              className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
-                              Join Now →
-                            </a>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
-                  <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
-                    <p className="text-[10px] text-gray-400 text-center">Live classes powered by Zoom</p>
+                  <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <p className="text-[10px] text-gray-400">Powered by Zoom</p>
+                    <Link href="/classes" onClick={() => setZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
+                      View all →
+                    </Link>
                   </div>
                 </div>
               )}
@@ -366,40 +401,69 @@ export default function WebsiteLayout({ children }) {
         {mobileZoomOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <p className="text-sm font-bold text-white flex items-center gap-2"><Video size={15} /> Upcoming Live Classes</p>
+              <p className="text-sm font-bold text-white flex items-center gap-2"><Video size={15} /> Live Classes</p>
               <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">{upcomingClasses.length} upcoming</span>
             </div>
             {upcomingClasses.length === 0 ? (
-              <div className="px-4 py-6 text-center text-xs text-gray-400">No upcoming live classes</div>
+              <div className="px-4 py-6 text-center">
+                <Video size={24} className="text-gray-300 mx-auto mb-2" />
+                <p className="text-xs text-gray-400 font-medium">No upcoming live classes</p>
+              </div>
             ) : (
               <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
-                {upcomingClasses.map(lc => (
-                  <div key={lc._id} className="px-4 py-3 hover:bg-blue-50 transition-colors">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{lc.title}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{lc.category} · {lc.duration} min</p>
-                        <p className="text-[10px] text-blue-600 font-semibold mt-0.5">📅 {fmtClassDate(lc.scheduledAt)}</p>
+                {upcomingClasses.map(lc => {
+                  const isLive = lc.status === "live";
+                  const hasJoinUrl = !!(lc.zoomJoinUrl);
+                  return (
+                    <div key={lc._id} className={`px-4 py-3 transition-colors ${isLive ? "bg-red-50/50" : "hover:bg-blue-50"}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{lc.title}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">{lc.category} · {lc.duration} min</p>
+                          <p className="text-[10px] text-blue-600 font-semibold mt-0.5">📅 {fmtClassDate(lc.scheduledAt)}</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                            isLive ? "bg-red-100 text-red-600 animate-pulse" : "bg-blue-100 text-blue-600"
+                          }`}>
+                            {isLive ? "🔴 LIVE" : "Scheduled"}
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
+                        </div>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${lc.status === "live" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
-                          {lc.status === "live" ? "🔴 LIVE" : "Scheduled"}
-                        </span>
-                        <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
+                      <div className="mt-2">
+                        {isLive && hasJoinUrl ? (
+                          <a
+                            href={lc.zoomJoinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setMobileZoomOpen(false)}
+                            className="block w-full text-center py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors"
+                          >
+                            🔴 Join Now →
+                          </a>
+                        ) : hasJoinUrl ? (
+                          <a
+                            href={lc.zoomJoinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setMobileZoomOpen(false)}
+                            className="block w-full text-center py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Open Zoom Link
+                          </a>
+                        ) : null}
                       </div>
                     </div>
-                    {lc.zoomJoinUrl && lc.status === "live" && (
-                      <a href={lc.zoomJoinUrl} target="_blank" rel="noopener noreferrer"
-                        className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
-                        Join Now →
-                      </a>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-            <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
-              <p className="text-[10px] text-gray-400 text-center">Live classes powered by Zoom</p>
+            <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+              <p className="text-[10px] text-gray-400">Powered by Zoom</p>
+              <Link href="/classes" onClick={() => setMobileZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
+                View all →
+              </Link>
             </div>
           </div>
         )}

@@ -1,16 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactCompiler: true,
   images: {
+    // Allow images from any domain — needed for Render backend + Cloudinary + Unsplash
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "fitzone-backend-vis3.onrender.com",
-        pathname: "/uploads/**",
+        hostname: "**",
       },
       {
         protocol: "http",
@@ -18,11 +13,10 @@ const nextConfig = {
         port: "5000",
         pathname: "/uploads/**",
       },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
     ],
+    // Fallback: allow all domains (less secure but needed for dynamic backends)
+    domains: [],
+    unoptimized: false,
   },
   // Ensure env vars are available at build time
   env: {

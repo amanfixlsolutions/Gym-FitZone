@@ -250,32 +250,34 @@ export default function Page() {
 
               return (
               <div key={c._id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-                  {/* Class image */}
-                  {c.image && (
-                    <div className="relative h-36 overflow-hidden">
+                  {/* Class image — show fallback gradient if no image or load error */}
+                  <div className="relative h-36 overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
+                    {c.image ? (
                       <img
                         src={resolveImage(c.image)}
                         alt={c.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => { e.target.style.display = "none"; e.target.parentElement.style.display = "none"; }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                      <span className={`absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full ${c.status === "Active" ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}>
-                        {c.status}
-                      </span>
-                    </div>
-                  )}
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <span className={`absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full ${c.status === "Active" ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"}`}>
+                      {c.status}
+                    </span>
+                    {!c.image && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <CalendarCheck size={32} className="text-white/40" />
+                      </div>
+                    )}
+                  </div>
                   <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold text-[var(--text)]">{c.name}</h3>
                       <p className="text-xs text-[var(--muted)] mt-0.5">{trainerName}</p>
                     </div>
-                    {!c.image && (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${c.status === "Active" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
-                        {c.status}
-                      </span>
-                    )}
                   </div>
                   <div className="space-y-1.5 mb-4">
                     <div className="flex items-center gap-2 text-xs text-[var(--muted)]"><Clock size={12} />{timeStr}</div>
