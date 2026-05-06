@@ -109,7 +109,12 @@ export default function Page() {
       set("image", res.data?.url || "");
       showSuccess("Image uploaded!");
     } catch (err) {
-      showError(err.message || "Image upload failed");
+      const msg = err.message || "Image upload failed";
+      if (msg.includes("storage not configured") || msg.includes("CLOUDINARY")) {
+        showError("⚠️ Image storage not configured. Set Cloudinary credentials in Render dashboard.");
+      } else {
+        showError(msg);
+      }
       setImgPreview(null);
     } finally {
       setImgUploading(false);
