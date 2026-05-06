@@ -109,12 +109,7 @@ export default function Page() {
       set("image", res.data?.url || "");
       showSuccess("Image uploaded!");
     } catch (err) {
-      const msg = err.message || "Image upload failed";
-      if (msg.includes("storage not configured") || msg.includes("CLOUDINARY")) {
-        showError("⚠️ Image storage not configured. Set Cloudinary credentials in Render dashboard.");
-      } else {
-        showError(msg);
-      }
+      showError(err.message || "Image upload failed");
       setImgPreview(null);
     } finally {
       setImgUploading(false);
@@ -263,7 +258,9 @@ export default function Page() {
                         alt={c.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.style.display = "none";
+                          // Replace broken image with a fallback Unsplash image
+                          e.target.src = "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=200&fit=crop";
+                          e.target.onerror = null; // prevent infinite loop
                         }}
                       />
                     ) : null}
