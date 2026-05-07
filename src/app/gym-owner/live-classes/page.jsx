@@ -24,7 +24,25 @@ const EMPTY_FORM = {
   maxParticipants: 30, isFree: true, price: 0, trainerName: "",
 };
 
-const fmtDate = (d) => d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+const fmtDate = (d) => {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit",
+    hour12: true,
+  });
+};
+
+// Convert UTC date to local datetime-local input value (IST)
+const toLocalInput = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  // Offset to IST (UTC+5:30)
+  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(date.getTime() + IST_OFFSET);
+  return istDate.toISOString().slice(0, 16);
+};
 const fmtMoney = (v) => `₹${(v || 0).toLocaleString()}`;
 
 export default function Page() {
@@ -63,9 +81,10 @@ export default function Page() {
 
   const openAdd = () => {
     setEditClass(null);
+    // Default to 1 hour from now in IST
     const now = new Date();
     now.setHours(now.getHours() + 1, 0, 0, 0);
-    setForm({ ...EMPTY_FORM, scheduledAt: now.toISOString().slice(0, 16) });
+    setForm({ ...EMPTY_FORM, scheduledAt: toLocalInput(now) });
     setShowModal(true);
   };
 
@@ -75,7 +94,7 @@ export default function Page() {
       title:           lc.title,
       description:     lc.description || "",
       category:        lc.category || "Yoga",
-      scheduledAt:     new Date(lc.scheduledAt).toISOString().slice(0, 16),
+      scheduledAt:     toLocalInput(lc.scheduledAt),
       duration:        lc.duration,
       maxParticipants: lc.maxParticipants,
       isFree:          lc.isFree,

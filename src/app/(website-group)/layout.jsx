@@ -104,7 +104,12 @@ export default function WebsiteLayout({ children }) {
     return `${Math.floor(hrs / 24)}d`;
   };
 
-  const fmtClassDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+  const fmtClassDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit",
+    hour12: true,
+  }) : "—";
 
   const handleLogout = () => {
     logoutUser();
