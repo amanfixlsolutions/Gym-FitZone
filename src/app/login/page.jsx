@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Dumbbell, Eye, EyeOff, Lock, Mail, ArrowRight,
-  Zap, ShieldCheck, Building2, Users,
+  Zap, ShieldCheck, Building2, Users, UserPlus,
 } from "lucide-react";
+import Link from "next/link";
 
 const ROLE_REDIRECT = {
   "super-admin": "/super-admin",
@@ -200,6 +201,25 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Sign up link */}
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-sm" style={{ color: "#6b7280" }}>
+              New member?{" "}
+              <Link
+                href="/signup"
+                className="font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+              >
+                Create account
+              </Link>
+            </p>
+            <Link
+              href="/signup"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors"
+            >
+              <UserPlus size={13} /> Sign Up Free
+            </Link>
+          </div>
+
           {/* Divider */}
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px" style={{ background: "#e5e7eb" }} />
@@ -243,7 +263,8 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs mt-6" style={{ color: "#9ca3af" }}>
-            FitZone Platform · v1.0.0
+            FitZone Platform · v1.0.0 ·{" "}
+            <Link href="/signup" className="text-blue-500 hover:underline">Create account</Link>
           </p>
         </div>
       </div>
