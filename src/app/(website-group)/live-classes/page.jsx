@@ -78,21 +78,32 @@ export default function LiveClassesPage() {
     setBooking(lc._id);
 
     try {
-      // ── Free class — direct book ───────────────────────────────
+      // ── Free class — direct book then get join link ────────────
       if (lc.isFree || lc.price === 0) {
-        const res = await liveClassAPI.book(lc._id);
+        await liveClassAPI.book(lc._id);
+
+        // Now call /join to get the Zoom link (only if class is live)
+        let joinUrl = null;
+        if (lc.status === "live") {
+          try {
+            const joinRes = await liveClassAPI.join(lc._id);
+            joinUrl = joinRes.joinUrl;
+          } catch { /* class not live yet */ }
+        }
+
         setSuccess({
           title:   lc.title,
-          joinUrl: res.joinUrl || lc.zoomJoinUrl,
+          joinUrl,
           isFree:  true,
+          isLive:  lc.status === "live",
         });
         fetchClasses();
         return;
       }
 
       // ── Paid class — Razorpay ──────────────────────────────────
-      const loaded2 = await loadRazorpay();
-      if (!loaded2) {
+      const sdkLoaded = await loadRazorpay();
+      if (!sdkLoaded) {
         setError("Failed to load payment gateway. Please try again.");
         return;
       }
@@ -100,13 +111,20 @@ export default function LiveClassesPage() {
       const orderRes = await liveClassAPI.book(lc._id);
 
       if (!orderRes.requiresPayment) {
-        // Already booked (e.g. re-booking)
-        setSuccess({ title: lc.title, joinUrl: orderRes.joinUrl || lc.zoomJoinUrl, isFree: false });
+        // Already booked
+        let joinUrl = null;
+        if (lc.status === "live") {
+          try {
+            const joinRes = await liveClassAPI.join(lc._id);
+            joinUrl = joinRes.joinUrl;
+          } catch { /* silent */ }
+        }
+        setSuccess({ title: lc.title, joinUrl, isFree: false, isLive: lc.status === "live" });
         fetchClasses();
         return;
       }
 
-      const { orderId, amount, currency, keyId, classTitle, memberName } = orderRes;
+      const { orderId, amount, currency, keyId, classTitle } = orderRes;
 
       const options = {
         key:         keyId,
@@ -128,10 +146,21 @@ export default function LiveClassesPage() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
             });
+
+            // Get Zoom link if class is live
+            let joinUrl = verifyRes.joinUrl || null;
+            if (!joinUrl && lc.status === "live") {
+              try {
+                const joinRes = await liveClassAPI.join(lc._id);
+                joinUrl = joinRes.joinUrl;
+              } catch { /* silent */ }
+            }
+
             setSuccess({
               title:   lc.title,
-              joinUrl: verifyRes.joinUrl || lc.zoomJoinUrl,
+              joinUrl,
               isFree:  false,
+              isLive:  lc.status === "live",
             });
             fetchClasses();
           } catch (err) {
@@ -200,7 +229,12 @@ export default function LiveClassesPage() {
               </a>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3">
-                <p className="text-xs text-amber-700 font-medium">Zoom link will be available when the class goes live.</p>
+                <p className="text-xs text-amber-700 font-medium">
+                  {success.isLive
+                    ? "Zoom link not available yet. Please try joining from the class page."
+                    : "✅ Booking confirmed! Zoom link will be available when the class goes live."
+                  }
+                </p>
               </div>
             )}
 
