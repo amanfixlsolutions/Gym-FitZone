@@ -4,23 +4,41 @@ import { authAPI } from "@/lib/api";
 
 const AuthContext = createContext();
 
-// ── Token storage ──────────────────────────────────────────────────
-const TOKEN_KEY = "fitzone_token";
-const USER_KEY  = "fitzone_user";
+// ── Token storage — TAB-ISOLATED ──────────────────────────────────
+// Access token + user → sessionStorage (per-tab, not shared)
+// Refresh token       → localStorage   (persists across tabs for "remember me")
+//
+// This prevents the cross-tab session bleed where admin in Tab 1
+// overwrites the member session in Tab 2.
 
-export const saveToken   = (t) => { if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, t); };
-export const getToken    = ()  => { if (typeof window === "undefined") return null; return localStorage.getItem(TOKEN_KEY); };
-export const removeToken = ()  => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem("fitzone_refresh");
-    localStorage.removeItem(USER_KEY);
-  }
+const TOKEN_KEY   = "fitzone_token";
+const USER_KEY    = "fitzone_user";
+const REFRESH_KEY = "fitzone_refresh";
+
+const ss = () => (typeof window !== "undefined" ? window.sessionStorage : null);
+const ls = () => (typeof window !== "undefined" ? window.localStorage  : null);
+
+export const saveToken = (t) => {
+  ss()?.setItem(TOKEN_KEY, t);
+  // Also keep in localStorage as fallback for api.js which reads localStorage
+  ls()?.setItem(TOKEN_KEY, t);
+};
+
+export const getToken = () => {
+  if (typeof window === "undefined") return null;
+  // sessionStorage first (tab-specific), then localStorage
+  return ss()?.getItem(TOKEN_KEY) || ls()?.getItem(TOKEN_KEY) || null;
+};
+
+export const removeToken = () => {
+  ss()?.removeItem(TOKEN_KEY);
+  ss()?.removeItem(USER_KEY);
+  ls()?.removeItem(TOKEN_KEY);
+  ls()?.removeItem(REFRESH_KEY);
+  ls()?.removeItem(USER_KEY);
 };
 
 // ── Normalize user — flatten gym object to primitive strings ───────
-// Backend populates gym as {_id, name, city, status, logo}
-// React cannot render objects as children, so we extract the fields
 const normalizeUser = (userData) => {
   if (!userData) return null;
   const u = { ...userData };
@@ -28,14 +46,20 @@ const normalizeUser = (userData) => {
     u.gymId   = String(u.gym._id   || "");
     u.gymName = String(u.gym.name  || "");
     u.gymCity = String(u.gym.city  || "");
-    u.gym     = String(u.gym._id   || ""); // keep as ID string
+    u.gym     = String(u.gym._id   || "");
   }
   return u;
 };
 
 const saveUser = (userData) => {
   const normalized = normalizeUser(userData);
-  if (normalized) localStorage.setItem(USER_KEY, JSON.stringify(normalized));
+  if (normalized) {
+    const json = JSON.stringify(normalized);
+    // Store in sessionStorage (tab-isolated) — primary source
+    ss()?.setItem(USER_KEY, json);
+    // Also in localStorage so api.js identity check works
+    ls()?.setItem(USER_KEY, json);
+  }
   return normalized;
 };
 
@@ -46,62 +70,28 @@ export function AuthProvider({ children }) {
   // ── Restore session on mount ───────────────────────────────────
   useEffect(() => {
     const restore = async () => {
-      const token = getToken();
+      // Check sessionStorage first — if this tab has its own token, use it
+      const sessionToken = ss()?.getItem(TOKEN_KEY);
 
-      const tryRefresh = async () => {
-        const refreshTok = localStorage.getItem("fitzone_refresh");
-        if (!refreshTok) return false;
-
-        // Get current user ID before refresh to validate identity
-        const currentUserId = (() => {
-          try {
-            const cached = localStorage.getItem(USER_KEY);
-            return cached ? JSON.parse(cached)?._id : null;
-          } catch { return null; }
-        })();
-
+      if (sessionToken) {
+        // This tab already has a session — validate it
         try {
-          const refreshData = await authAPI.refreshToken();
-          if (!refreshData.accessToken) return false;
-          saveToken(refreshData.accessToken);
-
-          const meData = await authAPI.getMe();
-          const freshUser = meData.user;
-
-          // ── Identity check — if user changed, reject the session ──
-          if (currentUserId && freshUser._id !== currentUserId) {
-            removeToken();
-            setUser(null);
-            return false;
-          }
-
-          const normalized = saveUser(freshUser);
+          const data = await authAPI.getMe();
+          const normalized = saveUser(data.user);
           setUser(normalized);
-          return true;
+          setLoaded(true);
+          return;
         } catch {
-          return false;
+          // Session token invalid — clear this tab's session
+          ss()?.removeItem(TOKEN_KEY);
+          ss()?.removeItem(USER_KEY);
         }
-      };
-
-      if (!token) {
-        const ok = await tryRefresh();
-        if (!ok) { removeToken(); setUser(null); }
-        setLoaded(true);
-        return;
       }
 
-      try {
-        // Always fetch fresh user from backend — never trust localStorage cache alone
-        const data = await authAPI.getMe();
-        const normalized = saveUser(data.user);
-        setUser(normalized);
-      } catch {
-        // Access token expired — try refresh
-        const ok = await tryRefresh();
-        if (!ok) { removeToken(); setUser(null); }
-      } finally {
-        setLoaded(true);
-      }
+      // No session in this tab — don't inherit from localStorage
+      // (prevents cross-tab session bleed)
+      setUser(null);
+      setLoaded(true);
     };
 
     restore();
@@ -109,19 +99,22 @@ export function AuthProvider({ children }) {
 
   // ── Login ──────────────────────────────────────────────────────
   const loginUser = useCallback(async (email, password) => {
-    // Clear any existing session first — prevents stale tokens from
-    // a previous user (e.g. admin) bleeding into the new session
-    removeToken();
+    // Clear THIS TAB's session only — don't touch other tabs
+    ss()?.removeItem(TOKEN_KEY);
+    ss()?.removeItem(USER_KEY);
 
     const data = await authAPI.login(email, password);
 
     if (data.accessToken) {
-      saveToken(data.accessToken);
-      if (data.refreshToken) localStorage.setItem("fitzone_refresh", data.refreshToken);
+      // Save access token to sessionStorage (this tab only)
+      ss()?.setItem(TOKEN_KEY, data.accessToken);
+      // Also update localStorage so api.js can read it for this tab
+      ls()?.setItem(TOKEN_KEY, data.accessToken);
+      // Refresh token in localStorage (needed for token refresh)
+      if (data.refreshToken) ls()?.setItem(REFRESH_KEY, data.refreshToken);
     }
 
-    // Login response has gym as ObjectId string (not populated)
-    // Call getMe to get the populated version
+    // Get populated user data
     let userData = data.user;
     try {
       const meData = await authAPI.getMe();
@@ -136,7 +129,12 @@ export function AuthProvider({ children }) {
   // ── Logout ─────────────────────────────────────────────────────
   const logoutUser = useCallback(async () => {
     try { await authAPI.logout(); } catch {}
-    removeToken();
+    // Only clear THIS TAB's session
+    ss()?.removeItem(TOKEN_KEY);
+    ss()?.removeItem(USER_KEY);
+    ls()?.removeItem(TOKEN_KEY);
+    ls()?.removeItem(REFRESH_KEY);
+    ls()?.removeItem(USER_KEY);
     setUser(null);
   }, []);
 
@@ -146,13 +144,22 @@ export function AuthProvider({ children }) {
     try {
       const data = await authAPI.refreshToken();
       if (!data.accessToken) throw new Error("No token");
-      saveToken(data.accessToken);
+
+      // Verify identity
+      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+        ss()?.removeItem(TOKEN_KEY);
+        ss()?.removeItem(USER_KEY);
+        setUser(null);
+        return false;
+      }
+
+      ss()?.setItem(TOKEN_KEY, data.accessToken);
+      ls()?.setItem(TOKEN_KEY, data.accessToken);
 
       const me = await authAPI.getMe();
-
-      // Identity check — if user changed, force logout
       if (currentUserId && me.user._id !== currentUserId) {
-        removeToken();
+        ss()?.removeItem(TOKEN_KEY);
+        ss()?.removeItem(USER_KEY);
         setUser(null);
         return false;
       }
@@ -161,7 +168,8 @@ export function AuthProvider({ children }) {
       setUser(normalized);
       return true;
     } catch {
-      removeToken();
+      ss()?.removeItem(TOKEN_KEY);
+      ss()?.removeItem(USER_KEY);
       setUser(null);
       return false;
     }

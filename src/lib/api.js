@@ -8,11 +8,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis
 // ── Token helpers ──────────────────────────────────────────────────
 const getToken = () => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("fitzone_token");
+  // sessionStorage first (tab-specific session), then localStorage fallback
+  return window.sessionStorage?.getItem("fitzone_token") ||
+         window.localStorage?.getItem("fitzone_token") || null;
 };
 
 const saveToken = (t) => {
-  if (typeof window !== "undefined") localStorage.setItem("fitzone_token", t);
+  if (typeof window !== "undefined") {
+    window.sessionStorage?.setItem("fitzone_token", t);
+    window.localStorage?.setItem("fitzone_token", t);
+  }
 };
 
 // ── Refresh token silently ─────────────────────────────────────────
@@ -30,7 +35,6 @@ const processQueue = (error, token = null) => {
 const refreshAccessToken = async () => {
   const refreshTok = typeof window !== "undefined" ? localStorage.getItem("fitzone_refresh") : null;
   if (!refreshTok) throw new Error("No refresh token");
-
   const res = await fetch(`${BASE_URL}/auth/refresh`, {
     method: "POST",
     credentials: "include",
@@ -45,14 +49,21 @@ const refreshAccessToken = async () => {
   // Verify the refreshed token belongs to the SAME user currently logged in
   if (data.userId && typeof window !== "undefined") {
     const currentUser = (() => {
-      try { return JSON.parse(localStorage.getItem("fitzone_user") || "null"); } catch { return null; }
+      try {
+        // Check sessionStorage first (tab-specific)
+        const ss = window.sessionStorage?.getItem("fitzone_user");
+        const ls = window.localStorage?.getItem("fitzone_user");
+        return JSON.parse(ss || ls || "null");
+      } catch { return null; }
     })();
 
     if (currentUser?._id && String(data.userId) !== String(currentUser._id)) {
-      // Refresh token belongs to a different user — clear and force re-login
-      localStorage.removeItem("fitzone_token");
-      localStorage.removeItem("fitzone_refresh");
-      localStorage.removeItem("fitzone_user");
+      // Refresh token belongs to a different user — clear this tab's session
+      window.sessionStorage?.removeItem("fitzone_token");
+      window.sessionStorage?.removeItem("fitzone_user");
+      window.localStorage?.removeItem("fitzone_token");
+      window.localStorage?.removeItem("fitzone_refresh");
+      window.localStorage?.removeItem("fitzone_user");
       throw new Error("Session mismatch — please log in again");
     }
   }
@@ -112,9 +123,11 @@ const request = async (endpoint, options = {}, _retry = false) => {
       isRefreshing = false;
       // Refresh failed — clear tokens silently, let user stay on page
       if (typeof window !== "undefined") {
-        localStorage.removeItem("fitzone_token");
-        localStorage.removeItem("fitzone_refresh");
-        localStorage.removeItem("fitzone_user");
+        window.sessionStorage?.removeItem("fitzone_token");
+        window.sessionStorage?.removeItem("fitzone_user");
+        window.localStorage?.removeItem("fitzone_token");
+        window.localStorage?.removeItem("fitzone_refresh");
+        window.localStorage?.removeItem("fitzone_user");
       }
       // Don't throw "Session expired" — just return empty data
       return { success: false, data: [], message: "session_expired" };
