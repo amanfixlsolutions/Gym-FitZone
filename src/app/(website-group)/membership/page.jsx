@@ -150,15 +150,34 @@ export default function MembershipPage() {
         handler: async (response) => {
           try {
             // Verify payment
-            await paymentAPI.verifyRazorpay({
+            const verifyRes = await paymentAPI.verifyRazorpay({
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
               memberId:            memberId || orderRes.data.memberId,
               planId:              plan.id,
             });
-            setPaySuccess(planName);
+
+            // Calculate expiry for display
+            const durationMap = { Month: 30, Months: 30, Year: 365, Years: 365, Day: 1, Days: 1 };
+            const days = (durationMap[plan.unit] || 30) * plan.duration;
+            const expiry = new Date(Date.now() + days * 86400000);
+
+            setPaySuccess({ name: plan.name, expiry });
             setPaying(null);
+
+            // Refresh user session to get updated plan
+            try {
+              const { authAPI } = await import("@/lib/api");
+              const meData = await authAPI.getMe();
+              // Update localStorage with new user data
+              if (typeof window !== "undefined") {
+                const normalized = meData.user;
+                window.sessionStorage?.setItem("fitzone_user", JSON.stringify(normalized));
+                window.localStorage?.setItem("fitzone_user", JSON.stringify(normalized));
+              }
+            } catch { /* silent */ }
+
           } catch (err) {
             setPayError(err.message || "Payment verification failed.");
             setPaying(null);
@@ -194,7 +213,17 @@ export default function MembershipPage() {
             </div>
             <h2 className="text-xl font-black text-gray-800 mb-2">Payment Successful! 🎉</h2>
             <p className="text-gray-500 text-sm mb-1">You've subscribed to</p>
-            <p className="text-amber-600 font-bold text-lg mb-4">{paySuccess}</p>
+            <p className="text-amber-600 font-bold text-lg mb-2">{paySuccess.name}</p>
+            {paySuccess.expiry && (
+              <div className="bg-amber-50 rounded-xl px-4 py-2.5 mb-4">
+                <p className="text-xs text-amber-700 font-semibold">Valid until</p>
+                <p className="text-sm font-bold text-amber-800">
+                  {new Date(paySuccess.expiry).toLocaleDateString("en-IN", {
+                    day: "numeric", month: "long", year: "numeric"
+                  })}
+                </p>
+              </div>
+            )}
             <p className="text-xs text-gray-400 mb-6">Your membership is now active. Welcome to FitZone!</p>
             <button
               onClick={() => { setPaySuccess(null); router.push("/"); }}
@@ -270,6 +299,16 @@ export default function MembershipPage() {
                           Sign Up to Join
                         </button>
                       </Link>
+                    ) : user.plan === plan.name ? (
+                      // User already has this plan
+                      <div className="w-full py-2.5 rounded-full text-sm text-center bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold">
+                        ✓ Current Plan
+                        {user.planExpiry && (
+                          <p className="text-[10px] text-emerald-600 mt-0.5 font-normal">
+                            Expires {new Date(user.planExpiry).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleBuyPlan(plan)}
@@ -278,6 +317,8 @@ export default function MembershipPage() {
                       >
                         {paying === plan.id ? (
                           <><Loader2 size={14} className="animate-spin" /> Processing...</>
+                        ) : user.plan ? (
+                          <><ArrowRight size={14} /> Upgrade</>
                         ) : (
                           <><CreditCard size={14} /> Buy Now</>
                         )}
