@@ -245,7 +245,7 @@ export default function WebsiteLayout({ children }) {
                   )}
                   <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
                     <p className="text-[10px] text-gray-400">Powered by Zoom</p>
-                    <Link href="/classes" onClick={() => setZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
+                    <Link href="/live-classes" onClick={() => setZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
                       View all →
                     </Link>
                   </div>
@@ -466,7 +466,7 @@ export default function WebsiteLayout({ children }) {
             )}
             <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
               <p className="text-[10px] text-gray-400">Powered by Zoom</p>
-              <Link href="/classes" onClick={() => setMobileZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
+              <Link href="/live-classes" onClick={() => setMobileZoomOpen(false)} className="text-[10px] text-blue-500 font-semibold hover:underline">
                 View all →
               </Link>
             </div>
