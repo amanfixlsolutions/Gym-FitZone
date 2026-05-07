@@ -333,10 +333,10 @@ export default function WebsiteLayout({ children }) {
                     )}
                     <div className="py-1.5">
                       {[
-                        { icon: User,       label: "My Profile",      href: "/" },
-                        { icon: Award,      label: "My Achievements", href: "/" },
+                        { icon: User,       label: "My Profile",      href: "/profile" },
+                        { icon: Award,      label: "My Achievements", href: "/achievements" },
                         { icon: CreditCard, label: "Membership",      href: "/membership" },
-                        { icon: Settings,   label: "Settings",        href: "/" },
+                        { icon: Settings,   label: "Settings",        href: "/settings" },
                       ].map((item, i) => (
                         <Link key={i} href={item.href} onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
