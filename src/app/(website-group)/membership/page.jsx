@@ -1,10 +1,12 @@
 ﻿"use client";
-import React, { useState, useEffect } from "react";
-import { CheckCircle, Star, ArrowRight, Zap, RefreshCw } from "lucide-react";
-import { planAPI } from "@/lib/api";
+import React, { useState, useEffect, useCallback } from "react";
+import { CheckCircle, Star, ArrowRight, Zap, RefreshCw, Loader2, X, CreditCard, AlertCircle } from "lucide-react";
+import { planAPI, paymentAPI, memberAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const planIcons = ["��", "⭐", "👑", "🏠", "💎", "🚀"];
+const planIcons = ["🥉", "⭐", "👑", "🏠", "💎", "🚀"];
 const planColors = [
   "from-slate-400 to-slate-500",
   "from-blue-500 to-indigo-500",
@@ -19,7 +21,7 @@ const faqs = [
   { q: "Is there a free trial available?", a: "We offer a 7-day free trial for new members. No credit card required to start your trial." },
   { q: "Can I upgrade or downgrade my plan?", a: "Absolutely! You can change your plan at any time. Changes take effect at the start of your next billing cycle." },
   { q: "Are there any hidden fees?", a: "No hidden fees. The price you see is the price you pay. All taxes are included in the listed price." },
-  { q: "What payment methods do you accept?", a: "We accept all major credit cards, debit cards, UPI, net banking and digital wallets." },
+  { q: "What payment methods do you accept?", a: "We accept all major credit cards, debit cards, UPI, net banking and digital wallets via Razorpay." },
 ];
 
 const testimonials = [
@@ -28,13 +30,29 @@ const testimonials = [
   { name: "Amit K.", plan: "Family", text: "The Family plan is perfect for us. My whole family loves it!", rating: 5, avatar: "AK" },
 ];
 
+// Load Razorpay script
+const loadRazorpay = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
 export default function MembershipPage() {
+  const { user, loaded } = useAuth();
+  const router = useRouter();
+
   const [plans,        setPlans]        = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [openFaq,      setOpenFaq]      = useState(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
+  const [paying,       setPaying]       = useState(null); // planId being paid
+  const [payError,     setPayError]     = useState("");
+  const [paySuccess,   setPaySuccess]   = useState(null); // plan name after success
 
-  // ── Fetch real plans from backend ─────────────────────────────
   useEffect(() => {
     const fetchPlans = async () => {
       setLoading(true);
@@ -50,7 +68,6 @@ export default function MembershipPage() {
     fetchPlans();
   }, []);
 
-  // ── Normalize plan from backend ────────────────────────────────
   const normPlan = (plan, idx) => ({
     id:       plan._id,
     name:     plan.name,
@@ -59,12 +76,7 @@ export default function MembershipPage() {
     unit:     plan.unit,
     icon:     planIcons[idx % planIcons.length],
     color:    planColors[idx % planColors.length],
-    features: plan.features?.length ? plan.features : [
-      "Full Gym Access",
-      "Locker Room",
-      "Group Classes",
-      "App Access",
-    ],
+    features: plan.features?.length ? plan.features : ["Full Gym Access", "Locker Room", "Group Classes", "App Access"],
     popular:  plan.popular || false,
     active:   plan.active !== false,
     subscribers: plan.totalSubscribers || 0,
@@ -72,12 +84,8 @@ export default function MembershipPage() {
 
   const normalizedPlans = plans.map(normPlan);
 
-  // ── Format price with billing cycle ───────────────────────────
   const displayPrice = (plan) => {
-    if (billingCycle === "yearly") {
-      const monthly = Math.round(plan.price * 0.8);
-      return `₹${monthly.toLocaleString()}`;
-    }
+    if (billingCycle === "yearly") return `₹${Math.round(plan.price * 0.8).toLocaleString()}`;
     return `₹${plan.price.toLocaleString()}`;
   };
 
@@ -86,8 +94,117 @@ export default function MembershipPage() {
     return `/${plan.duration} ${plan.unit?.toLowerCase()}`;
   };
 
+  // ── Handle plan purchase ───────────────────────────────────────
+  const handleBuyPlan = useCallback(async (plan) => {
+    setPayError("");
+
+    // Not logged in → redirect to signup
+    if (!loaded || !user) {
+      router.push("/signup");
+      return;
+    }
+
+    setPaying(plan.id);
+    try {
+      // Load Razorpay SDK
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        setPayError("Failed to load payment gateway. Please try again.");
+        setPaying(null);
+        return;
+      }
+
+      // Find member record
+      let memberId = null;
+      try {
+        const memberRes = await memberAPI.getAll({ limit: 1 });
+        // Try to find member by email
+        const members = memberRes.data || [];
+        const myMember = members.find(m => m.email === user.email);
+        if (myMember) memberId = myMember._id;
+      } catch { /* member may not exist yet */ }
+
+      // Create Razorpay order
+      const orderRes = await paymentAPI.createRazorpayOrder({
+        planId:   plan.id,
+        memberId: memberId || undefined,
+        amount:   billingCycle === "yearly" ? Math.round(plan.price * 0.8 * plan.duration) : plan.price,
+      });
+
+      const { orderId, amount, currency, keyId, planName } = orderRes.data;
+
+      // Open Razorpay checkout
+      const options = {
+        key:         keyId,
+        amount,
+        currency,
+        name:        "FitZone",
+        description: `${planName} Membership`,
+        order_id:    orderId,
+        prefill: {
+          name:    user.name,
+          email:   user.email,
+          contact: user.phone || "",
+        },
+        theme: { color: "#f59e0b" },
+        handler: async (response) => {
+          try {
+            // Verify payment
+            await paymentAPI.verifyRazorpay({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              memberId:            memberId || orderRes.data.memberId,
+              planId:              plan.id,
+            });
+            setPaySuccess(planName);
+            setPaying(null);
+          } catch (err) {
+            setPayError(err.message || "Payment verification failed.");
+            setPaying(null);
+          }
+        },
+        modal: {
+          ondismiss: () => setPaying(null),
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        setPayError(response.error?.description || "Payment failed.");
+        setPaying(null);
+      });
+      rzp.open();
+
+    } catch (err) {
+      setPayError(err.message || "Failed to initiate payment.");
+      setPaying(null);
+    }
+  }, [user, loaded, billingCycle, router]);
+
   return (
     <div className="bg-white">
+
+      {/* ── Payment Success Modal ── */}
+      {paySuccess && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-emerald-500" />
+            </div>
+            <h2 className="text-xl font-black text-gray-800 mb-2">Payment Successful! 🎉</h2>
+            <p className="text-gray-500 text-sm mb-1">You've subscribed to</p>
+            <p className="text-amber-600 font-bold text-lg mb-4">{paySuccess}</p>
+            <p className="text-xs text-gray-400 mb-6">Your membership is now active. Welcome to FitZone!</p>
+            <button
+              onClick={() => { setPaySuccess(null); router.push("/"); }}
+              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+            >
+              Start Your Journey →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── SECTION 1: Hero + Plans ── */}
       <section className="min-h-screen flex flex-col justify-center bg-gradient-to-br from-amber-50 to-orange-50 pt-16">
@@ -102,7 +219,7 @@ export default function MembershipPage() {
             </h1>
             <div className="w-16 h-0.5 bg-amber-500 mx-auto mb-4" />
             <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto mb-5">
-              Choose the plan that fits your goals. No hidden fees, cancel anytime.
+              Choose the plan that fits your goals. Secure payment via Razorpay.
             </p>
             <div className="inline-flex items-center bg-white rounded-full p-1 shadow-md border border-amber-100">
               <button onClick={() => setBillingCycle("monthly")} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${billingCycle === "monthly" ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-amber-600"}`}>Monthly</button>
@@ -110,14 +227,23 @@ export default function MembershipPage() {
             </div>
           </div>
 
+          {/* Error */}
+          {payError && (
+            <div className="max-w-md mx-auto mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+              <AlertCircle size={15} className="flex-shrink-0" />
+              {payError}
+              <button onClick={() => setPayError("")} className="ml-auto"><X size={14} /></button>
+            </div>
+          )}
+
           {loading ? (
-            <div className="flex justify-center py-10"><RefreshCw className="w-8 h-8 text-amber-500 animate-spin" /></div>
+            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>
           ) : normalizedPlans.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">No plans available yet. Please check back soon.</p>
+            <p className="text-center text-gray-400 py-10">No plans available yet.</p>
           ) : (
             <div className={`grid gap-4 max-w-6xl mx-auto ${normalizedPlans.length <= 2 ? "md:grid-cols-2" : normalizedPlans.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
-              {normalizedPlans.map((plan, i) => (
-                <div key={plan.id} className={`bg-white rounded-2xl shadow-md overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer relative ${plan.popular ? "border-2 border-amber-500 shadow-lg" : "border border-gray-100"}`}>
+              {normalizedPlans.map((plan) => (
+                <div key={plan.id} className={`bg-white rounded-2xl shadow-md overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl relative ${plan.popular ? "border-2 border-amber-500 shadow-lg" : "border border-gray-100"}`}>
                   {plan.popular && <div className="absolute top-0 right-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-bl-lg text-xs font-semibold">Most Popular</div>}
                   <div className="p-5">
                     <div className="text-3xl mb-3">{plan.icon}</div>
@@ -136,11 +262,27 @@ export default function MembershipPage() {
                         </li>
                       ))}
                     </ul>
-                    <Link href="/login">
-                      <button className={`w-full py-2.5 rounded-full font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95 ${plan.popular ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg hover:shadow-amber-500/30" : "border border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white"}`}>
-                        Join Now
+
+                    {/* Buy button */}
+                    {!loaded || !user ? (
+                      <Link href="/signup">
+                        <button className={`w-full py-2.5 rounded-full font-semibold text-sm transition-all duration-300 hover:scale-105 ${plan.popular ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg" : "border border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white"}`}>
+                          Sign Up to Join
+                        </button>
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => handleBuyPlan(plan)}
+                        disabled={paying === plan.id}
+                        className={`w-full py-2.5 rounded-full font-semibold text-sm transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.popular ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg hover:shadow-amber-500/30" : "border border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white"}`}
+                      >
+                        {paying === plan.id ? (
+                          <><Loader2 size={14} className="animate-spin" /> Processing...</>
+                        ) : (
+                          <><CreditCard size={14} /> Buy Now</>
+                        )}
                       </button>
-                    </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -148,7 +290,7 @@ export default function MembershipPage() {
           )}
 
           <div className="flex flex-wrap justify-center gap-4 mt-6">
-            {["No Hidden Fees", "Cancel Anytime", "Secure Payment", "24/7 Support", "Free Trial"].map((t, i) => (
+            {["No Hidden Fees", "Cancel Anytime", "Secure Razorpay", "24/7 Support", "Instant Activation"].map((t, i) => (
               <div key={i} className="flex items-center gap-1.5 text-sm text-gray-600 bg-white rounded-full px-4 py-2 shadow-sm"><CheckCircle className="w-4 h-4 text-amber-500" /> {t}</div>
             ))}
           </div>
@@ -156,7 +298,7 @@ export default function MembershipPage() {
       </section>
 
       {/* ── SECTION 2: Testimonials ── */}
-      <section className="min-h-screen flex flex-col justify-center bg-white py-10">
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800">What <span className="text-amber-500">Members Say</span></h2>
@@ -178,7 +320,7 @@ export default function MembershipPage() {
       </section>
 
       {/* ── SECTION 3: FAQ + CTA ── */}
-      <section className="min-h-screen flex flex-col justify-center bg-gradient-to-br from-amber-50 to-orange-50 py-10">
+      <section className="py-16 bg-gradient-to-br from-amber-50 to-orange-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Frequently Asked <span className="text-amber-500">Questions</span></h2>
@@ -198,7 +340,7 @@ export default function MembershipPage() {
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-8 md:p-12 text-center max-w-3xl mx-auto shadow-xl">
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Ready to Start Your Fitness Journey?</h2>
             <p className="text-amber-100 text-sm mb-6 max-w-lg mx-auto">Join thousands of members who have already transformed their lives with FitZone.</p>
-            <Link href="/login">
+            <Link href={user ? "#plans" : "/signup"}>
               <button className="bg-white text-amber-600 px-8 py-3 rounded-full font-bold text-sm hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto">
                 Get Started Today <ArrowRight className="w-4 h-4" />
               </button>

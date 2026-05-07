@@ -38,6 +38,14 @@ const fmtDate = (d) => {
   });
 };
 
+// Convert UTC/ISO date to datetime-local input value in local browser timezone
+const toLocalInput = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
 // Convert UTC date from server to local datetime-local input value
 const toLocalInput = (utcDateString) => {
   if (!utcDateString) return "";
