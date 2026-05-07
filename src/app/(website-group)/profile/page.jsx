@@ -49,11 +49,24 @@ export default function ProfilePage() {
     : "—";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 pt-24 pb-12">
+    <div className="min-h-screen pt-20 pb-12 relative">
+      {/* Background image */}
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/60" />
+      </div>
+
       <div className="container mx-auto px-4 max-w-2xl">
 
         {/* Header card */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-5">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden mb-5">
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-8 flex items-center gap-5">
             <div className="w-20 h-20 rounded-full bg-white/20 border-4 border-white/50 flex items-center justify-center text-white text-2xl font-black shadow-lg flex-shrink-0">
               {initials}
@@ -121,7 +134,7 @@ export default function ProfilePage() {
 
         {/* Gym info */}
         {(user.gymName || user.gymId) && (
-          <div className="bg-white rounded-2xl shadow-md p-6">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
             <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
               <MapPin size={16} className="text-amber-500" /> Gym Details
             </h2>

@@ -50,17 +50,30 @@ export default function SettingsPage() {
   const toggle = (field) => setShowPw(p => ({ ...p, [field]: !p[field] }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 pt-24 pb-12">
+    <div className="min-h-screen pt-20 pb-12 relative">
+      {/* Background — gym equipment image */}
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1920&q=80')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/65" />
+      </div>
+
       <div className="container mx-auto px-4 max-w-2xl space-y-5">
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-black text-gray-800">Settings</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your account preferences</p>
+          <h1 className="text-2xl font-black text-white">Settings</h1>
+          <p className="text-sm text-white/60 mt-0.5">Manage your account preferences</p>
         </div>
 
         {/* Change Password */}
-        <div className="bg-white rounded-2xl shadow-md p-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
               <Lock size={18} className="text-amber-600" />
@@ -117,7 +130,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Notifications */}
-        <div className="bg-white rounded-2xl shadow-md p-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
               <Bell size={18} className="text-blue-600" />
@@ -148,7 +161,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Account */}
-        <div className="bg-white rounded-2xl shadow-md p-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
               <Shield size={18} className="text-red-500" />

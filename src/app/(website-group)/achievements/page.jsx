@@ -32,11 +32,24 @@ export default function AchievementsPage() {
   const earned = ACHIEVEMENTS.filter(a => a.earned).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 pt-24 pb-12">
+    <div className="min-h-screen pt-20 pb-12 relative">
+      {/* Background — gym/trophy image */}
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1920&q=80')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/65" />
+      </div>
+
       <div className="container mx-auto px-4 max-w-2xl">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 mb-6 text-white shadow-md">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 mb-6 text-white shadow-xl">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
               <Award size={28} className="text-white" />
@@ -62,8 +75,8 @@ export default function AchievementsPage() {
         {/* Achievements grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ACHIEVEMENTS.map((a, i) => (
-            <div key={i} className={`bg-white rounded-2xl p-5 shadow-md border-2 transition-all ${
-              a.earned ? "border-amber-200 hover:shadow-lg" : "border-gray-100 opacity-60"
+            <div key={i} className={`bg-white/95 backdrop-blur-sm rounded-2xl p-5 shadow-xl border-2 transition-all ${
+              a.earned ? "border-amber-200 hover:shadow-2xl hover:scale-[1.02]" : "border-gray-100 opacity-60"
             }`}>
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${a.color}`}>
@@ -85,7 +98,7 @@ export default function AchievementsPage() {
           ))}
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-white/60 mt-6">
           More achievements coming soon! Keep working out to unlock them.
         </p>
       </div>
