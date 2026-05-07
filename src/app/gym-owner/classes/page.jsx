@@ -19,7 +19,15 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "https:
 const resolveImage = (img) => {
   if (!img) return null;
   if (img.startsWith("http")) return img;
-  return `${BASE_URL}/${img.replace(/^\//, "")}`;
+  // Relative path like /uploads/classes/abc.jpg
+  return `${BASE_URL}${img.startsWith("/") ? img : "/" + img}`;
+};
+
+// Fallback image URL using the API endpoint (more reliable than static)
+const resolveImageWithFallback = (img) => {
+  if (!img) return null;
+  if (img.startsWith("http")) return img;
+  return `${BASE_URL}${img.startsWith("/") ? img : "/" + img}`;
 };
 
 export default function Page() {
@@ -258,9 +266,16 @@ export default function Page() {
                         alt={c.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          // Replace broken image with a fallback Unsplash image
-                          e.target.src = "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=200&fit=crop";
-                          e.target.onerror = null; // prevent infinite loop
+                          // Try API endpoint as fallback
+                          const apiUrl = c.image.includes("/uploads/")
+                            ? `${BASE_URL}/api/images/${c.image.split("/uploads/")[1]}`
+                            : null;
+                          if (apiUrl && e.target.src !== apiUrl) {
+                            e.target.src = apiUrl;
+                          } else {
+                            e.target.src = "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=200&fit=crop";
+                            e.target.onerror = null;
+                          }
                         }}
                       />
                     ) : null}
