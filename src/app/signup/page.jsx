@@ -57,16 +57,10 @@ export default function SignupPage() {
     if (!email.trim()) return;
     setLoading(true); setError("");
     try {
-      const res = await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
+      await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
       setStep(2);
       setResendSecs(OTP_RESEND_SECS);
-      // Demo/dev mode — OTP returned in response, auto-fill it
-      if (res.otp) {
-        setDemoOtp(res.otp);
-        const digits = res.otp.toString().split("");
-        setOtp(digits);
-      }
-      setTimeout(() => otpRefs.current[OTP_LENGTH - 1]?.focus(), 100);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (err) {
       setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
@@ -119,14 +113,10 @@ export default function SignupPage() {
     if (resendSecs > 0) return;
     setLoading(true); setError("");
     try {
-      const res = await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
+      await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
       setOtp(Array(OTP_LENGTH).fill(""));
       setDemoOtp("");
       setResendSecs(OTP_RESEND_SECS);
-      if (res.otp) {
-        setDemoOtp(res.otp);
-        setOtp(res.otp.toString().split(""));
-      }
       otpRefs.current[0]?.focus();
     } catch (err) {
       setError(err.message || "Failed to resend OTP.");
