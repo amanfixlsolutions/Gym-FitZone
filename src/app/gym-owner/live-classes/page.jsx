@@ -24,25 +24,45 @@ const EMPTY_FORM = {
   maxParticipants: 30, isFree: true, price: 0, trainerName: "",
 };
 
+// Format date for display in IST
 const fmtDate = (d) => {
   if (!d) return "—";
-  return new Date(d).toLocaleString("en-IN", {
+  const date = new Date(d);
+  return date.toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
-    day: "numeric", month: "short",
-    hour: "2-digit", minute: "2-digit",
+    day: "numeric", 
+    month: "short",
+    hour: "2-digit", 
+    minute: "2-digit",
     hour12: true,
   });
 };
 
-// Convert UTC date to local datetime-local input value (IST)
-const toLocalInput = (d) => {
-  if (!d) return "";
-  const date = new Date(d);
-  // Offset to IST (UTC+5:30)
-  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(date.getTime() + IST_OFFSET);
-  return istDate.toISOString().slice(0, 16);
+// Convert UTC date from server to local datetime-local input value
+const toLocalInput = (utcDateString) => {
+  if (!utcDateString) return "";
+  const date = new Date(utcDateString);
+  // Get local time components directly
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
+
+// Get current datetime in local timezone for datetime-local input
+const getCurrentLocalDateTime = () => {
+  const now = new Date();
+  now.setHours(now.getHours() + 1); // Add 1 hour
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const fmtMoney = (v) => `₹${(v || 0).toLocaleString()}`;
 
 export default function Page() {
@@ -81,10 +101,10 @@ export default function Page() {
 
   const openAdd = () => {
     setEditClass(null);
-    // Default to 1 hour from now in IST
-    const now = new Date();
-    now.setHours(now.getHours() + 1, 0, 0, 0);
-    setForm({ ...EMPTY_FORM, scheduledAt: toLocalInput(now) });
+    setForm({ 
+      ...EMPTY_FORM, 
+      scheduledAt: getCurrentLocalDateTime()
+    });
     setShowModal(true);
   };
 
@@ -109,17 +129,13 @@ export default function Page() {
     if (!form.title || !form.scheduledAt) return;
     setSaving(true);
     try {
-      // Convert datetime-local value (treated as IST) to proper UTC ISO string
-      // datetime-local gives "2026-05-07T16:30" — we treat this as IST (UTC+5:30)
-      // So we subtract 5:30 to get UTC before sending to backend
-      const localDate = new Date(form.scheduledAt);
-      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-      const utcDate = new Date(localDate.getTime() - IST_OFFSET_MS);
-
-      const payload = {
-        ...form,
-        scheduledAt: utcDate.toISOString(),
-        price: form.isFree ? 0 : Number(form.price),
+      // Parse the local datetime string to Date object
+      const localDateTime = new Date(form.scheduledAt);
+      // Send ISO string (will be UTC)
+      const payload = { 
+        ...form, 
+        scheduledAt: localDateTime.toISOString(),
+        price: form.isFree ? 0 : Number(form.price) 
       };
       if (editClass) {
         await liveClassAPI.update(editClass._id, payload);
@@ -431,6 +447,7 @@ export default function Page() {
                   <label className="text-xs font-medium text-[var(--muted)] block mb-1.5">Scheduled Date & Time <span className="text-red-500">*</span></label>
                   <input required type="datetime-local" value={form.scheduledAt} onChange={e => set("scheduledAt", e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <p className="text-[10px] text-[var(--muted2)] mt-1">Time will be in your local timezone (IST)</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
