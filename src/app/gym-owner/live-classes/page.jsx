@@ -109,7 +109,18 @@ export default function Page() {
     if (!form.title || !form.scheduledAt) return;
     setSaving(true);
     try {
-      const payload = { ...form, price: form.isFree ? 0 : Number(form.price) };
+      // Convert datetime-local value (treated as IST) to proper UTC ISO string
+      // datetime-local gives "2026-05-07T16:30" — we treat this as IST (UTC+5:30)
+      // So we subtract 5:30 to get UTC before sending to backend
+      const localDate = new Date(form.scheduledAt);
+      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+      const utcDate = new Date(localDate.getTime() - IST_OFFSET_MS);
+
+      const payload = {
+        ...form,
+        scheduledAt: utcDate.toISOString(),
+        price: form.isFree ? 0 : Number(form.price),
+      };
       if (editClass) {
         await liveClassAPI.update(editClass._id, payload);
         showSuccess("Class updated!");
