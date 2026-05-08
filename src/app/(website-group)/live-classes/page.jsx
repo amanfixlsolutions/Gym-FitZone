@@ -80,7 +80,18 @@ export default function LiveClassesPage() {
     try {
       // ── Free class — direct book then get join link ────────────
       if (lc.isFree || lc.price === 0) {
-        await liveClassAPI.book(lc._id);
+        const res = await liveClassAPI.book(lc._id);
+
+        // Handle already booked
+        if (res.alreadyBooked) {
+          let joinUrl = null;
+          if (lc.status === "live") {
+            try { const j = await liveClassAPI.join(lc._id); joinUrl = j.joinUrl; } catch {}
+          }
+          setSuccess({ title: lc.title, joinUrl, isFree: true, isLive: lc.status === "live" });
+          fetchClasses();
+          return;
+        }
 
         // Now call /join to get the Zoom link (only if class is live)
         let joinUrl = null;
@@ -110,14 +121,22 @@ export default function LiveClassesPage() {
 
       const orderRes = await liveClassAPI.book(lc._id);
 
-      if (!orderRes.requiresPayment) {
-        // Already booked
+      // Already confirmed booking
+      if (orderRes.alreadyBooked) {
         let joinUrl = null;
         if (lc.status === "live") {
-          try {
-            const joinRes = await liveClassAPI.join(lc._id);
-            joinUrl = joinRes.joinUrl;
-          } catch { /* silent */ }
+          try { const j = await liveClassAPI.join(lc._id); joinUrl = j.joinUrl; } catch {}
+        }
+        setSuccess({ title: lc.title, joinUrl, isFree: false, isLive: lc.status === "live" });
+        fetchClasses();
+        return;
+      }
+
+      if (!orderRes.requiresPayment) {
+        // Booked without payment (shouldn't happen for paid, but handle gracefully)
+        let joinUrl = null;
+        if (lc.status === "live") {
+          try { const j = await liveClassAPI.join(lc._id); joinUrl = j.joinUrl; } catch {}
         }
         setSuccess({ title: lc.title, joinUrl, isFree: false, isLive: lc.status === "live" });
         fetchClasses();
