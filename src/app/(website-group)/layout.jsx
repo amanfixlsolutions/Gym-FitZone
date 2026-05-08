@@ -284,8 +284,15 @@ export default function WebsiteLayout({ children }) {
     setQrScanning(true);
     try {
       const { api } = await import("@/lib/api");
-      const res = await api.post("/attendance/qr-checkin", { qrData, memberId: user?._id });
-      setQrResult({ success: true, message: res.message || "Attendance marked!", member: res.data?.memberName });
+      // Send just the raw QR data — backend handles all lookup logic
+      const res = await api.post("/attendance/qr-checkin", { qrData });
+      setQrResult({
+        success: true,
+        message: res.message || "Attendance marked!",
+        member:  res.member?.name,
+        plan:    res.member?.planName,
+        alreadyIn: res.alreadyIn,
+      });
     } catch (err) {
       setQrResult({ success: false, message: err.message || "Invalid QR code." });
     } finally {
@@ -798,14 +805,15 @@ export default function WebsiteLayout({ children }) {
                 <div className="text-center py-4">
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${qrResult.success ? "bg-emerald-100" : "bg-red-100"}`}>
                     {qrResult.success
-                      ? <span className="text-3xl">✅</span>
+                      ? <span className="text-3xl">{qrResult.alreadyIn ? "⚠️" : "✅"}</span>
                       : <span className="text-3xl">❌</span>
                     }
                   </div>
-                  <p className={`text-base font-bold mb-1 ${qrResult.success ? "text-emerald-700" : "text-red-600"}`}>
-                    {qrResult.success ? "Attendance Marked!" : "Failed"}
+                  <p className={`text-base font-bold mb-1 ${qrResult.success ? (qrResult.alreadyIn ? "text-amber-600" : "text-emerald-700") : "text-red-600"}`}>
+                    {qrResult.success ? (qrResult.alreadyIn ? "Already Checked In" : "Attendance Marked! ✓") : "Failed"}
                   </p>
-                  {qrResult.member && <p className="text-sm text-gray-600 mb-1">{qrResult.member}</p>}
+                  {qrResult.member && <p className="text-sm font-semibold text-gray-800 mb-0.5">{qrResult.member}</p>}
+                  {qrResult.plan && <p className="text-xs text-amber-600 mb-1">{qrResult.plan}</p>}
                   <p className="text-xs text-gray-500 mb-5">{qrResult.message}</p>
                   <button
                     onClick={() => setQrResult(null)}
