@@ -46,11 +46,12 @@ export default function LiveClassesPage() {
   const router = useRouter();
 
   const [classes,    setClasses]    = useState([]);
+  const [myBookings, setMyBookings] = useState([]); // user's confirmed bookings
   const [loading,    setLoading]    = useState(true);
-  const [booking,    setBooking]    = useState(null);  // classId being booked
+  const [booking,    setBooking]    = useState(null);
   const [error,      setError]      = useState("");
-  const [success,    setSuccess]    = useState(null);  // { title, joinUrl }
-  const [filter,     setFilter]     = useState("all"); // all | free | paid | live
+  const [success,    setSuccess]    = useState(null);
+  const [filter,     setFilter]     = useState("all"); // all | live | free | paid | mine
 
   const fetchClasses = useCallback(async () => {
     setLoading(true);
@@ -64,7 +65,19 @@ export default function LiveClassesPage() {
     }
   }, []);
 
+  // Fetch user's bookings
+  const fetchMyBookings = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await liveClassAPI.history({ limit: 50 });
+      setMyBookings(res.data?.bookings || []);
+    } catch {
+      setMyBookings([]);
+    }
+  }, [user]);
+
   useEffect(() => { fetchClasses(); }, [fetchClasses]);
+  useEffect(() => { fetchMyBookings(); }, [fetchMyBookings]);
 
   // ── Book a class (free or paid) ────────────────────────────────
   const handleBook = async (lc) => {
@@ -301,6 +314,7 @@ export default function LiveClassesPage() {
             { key: "live", label: "🔴 Live Now" },
             { key: "free", label: "Free" },
             { key: "paid", label: "Paid" },
+            ...(user ? [{ key: "mine", label: `My Bookings ${myBookings.filter(b => b.bookingStatus === "confirmed").length > 0 ? `(${myBookings.filter(b => b.bookingStatus === "confirmed").length})` : ""}` }] : []),
           ].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
@@ -311,13 +325,90 @@ export default function LiveClassesPage() {
               {f.label}
             </button>
           ))}
-          <button onClick={fetchClasses} className="p-2 bg-white/10 backdrop-blur-sm rounded-full text-white hover:bg-white/20 transition-all">
+          <button onClick={() => { fetchClasses(); fetchMyBookings(); }} className="p-2 bg-white/10 backdrop-blur-sm rounded-full text-white hover:bg-white/20 transition-all">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
 
-        {/* Classes Grid */}
-        {loading ? (
+        {/* My Bookings Tab */}
+        {filter === "mine" && user && (
+          <div className="space-y-3 mb-6">
+            {myBookings.filter(b => b.bookingStatus === "confirmed").length === 0 ? (
+              <div className="text-center py-12">
+                <Video size={40} className="text-white/30 mx-auto mb-3" />
+                <p className="text-white/60 text-sm">No bookings yet.</p>
+                <button onClick={() => setFilter("all")} className="mt-3 text-amber-400 text-sm font-semibold hover:underline">
+                  Browse classes →
+                </button>
+              </div>
+            ) : (
+              myBookings.filter(b => b.bookingStatus === "confirmed").map(b => {
+                const lc = b.liveClass;
+                if (!lc) return null;
+                const isLive = lc.status === "live";
+                const color = CATEGORY_COLORS[lc.category] || CATEGORY_COLORS.Other;
+                return (
+                  <div key={b._id} className="bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl">
+                    <div className={`bg-gradient-to-r ${color} px-4 py-2.5 flex items-center justify-between`}>
+                      <div className="flex items-center gap-2">
+                        <Video size={14} className="text-white" />
+                        <span className="text-white text-xs font-bold">{lc.category || "Live Class"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isLive && <span className="text-[9px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full animate-pulse">🔴 LIVE</span>}
+                        <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">
+                          {b.paymentStatus === "free" ? "Free" : `₹${b.paymentAmount}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-800 text-sm truncate">{lc.title || b.classTitle}</h3>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><Calendar size={11} />{fmtDate(lc.scheduledAt)}</span>
+                          <span className="flex items-center gap-1"><Clock size={11} />{lc.duration} min</span>
+                        </div>
+                        <span className={`inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          b.attendanceStatus === "completed" ? "bg-emerald-100 text-emerald-700" :
+                          b.attendanceStatus === "joined"    ? "bg-blue-100 text-blue-700" :
+                          isLive ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {b.attendanceStatus === "completed" ? "✓ Attended" :
+                           b.attendanceStatus === "joined"    ? "Joined" :
+                           isLive ? "🔴 Live Now" : "Upcoming"}
+                        </span>
+                      </div>
+                      {/* Join button — only for live classes */}
+                      {isLive ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await liveClassAPI.join(lc._id);
+                              if (res.joinUrl) window.open(res.joinUrl, "_blank");
+                              else setError("Zoom link not available yet.");
+                            } catch (err) {
+                              setError(err.message || "Failed to get Zoom link.");
+                            }
+                          }}
+                          className="flex-shrink-0 px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs font-bold rounded-xl hover:shadow-lg transition-all flex items-center gap-1.5"
+                        >
+                          <Video size={13} /> Join Zoom
+                        </button>
+                      ) : lc.status === "scheduled" ? (
+                        <span className="flex-shrink-0 text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-xl">
+                          Starts soon
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Classes Grid — hidden when My Bookings tab is active */}
+        {filter !== "mine" && (loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
           </div>
@@ -438,6 +529,7 @@ export default function LiveClassesPage() {
       </div>
 
       <style>{`.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}`}</style>
+        )}
       </div>
     </div>
   );
