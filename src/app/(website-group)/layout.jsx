@@ -1,12 +1,11 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useRef } from "react";import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Dumbbell, Menu, X, MapPin, Phone, Mail,
   ChevronDown, ChevronRight, LogOut, User, Settings,
-  Award, CreditCard, Video, Bell,
+  Award, CreditCard, Video, Bell, QrCode,
 } from "lucide-react";
 import { notificationAPI, liveClassAPI } from "@/lib/api";
 import { FaFacebook, FaInstagram, FaTwitter, FaYoutube } from "react-icons/fa";
@@ -18,6 +17,91 @@ const NAV_ITEMS = [
   { label: "Membership", href: "/membership" },
   { label: "Contact",    href: "/contact" },
 ];
+
+// ── QR Scanner using device camera ────────────────────────────────
+function QrScannerView({ onScan, scanning }) {
+  const videoRef = React.useRef(null);
+  const [cameraError, setCameraError] = React.useState("");
+  const [active, setActive] = React.useState(false);
+
+  React.useEffect(() => {
+    let stream = null;
+    let interval = null;
+
+    const startCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setActive(true);
+        }
+      } catch {
+        setCameraError("Camera not available. Use manual entry below.");
+      }
+    };
+
+    startCamera();
+    return () => {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      if (interval) clearInterval(interval);
+    };
+  }, []);
+
+  if (cameraError) {
+    return (
+      <div className="bg-gray-100 rounded-xl h-48 flex items-center justify-center text-center px-4">
+        <p className="text-xs text-gray-500">{cameraError}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative rounded-xl overflow-hidden bg-black h-48">
+      <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+      {/* Scan overlay */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-36 h-36 border-2 border-amber-400 rounded-xl relative">
+          <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-amber-400 rounded-tl-lg" />
+          <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-amber-400 rounded-tr-lg" />
+          <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-amber-400 rounded-bl-lg" />
+          <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-amber-400 rounded-br-lg" />
+        </div>
+      </div>
+      {scanning && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+      <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-white/70">
+        Align QR code within the frame
+      </p>
+    </div>
+  );
+}
+
+// ── Manual QR / Member ID input ────────────────────────────────────
+function ManualQrInput({ onSubmit, scanning }) {
+  const [val, setVal] = React.useState("");
+  return (
+    <div className="flex gap-2 mt-2">
+      <input
+        type="text"
+        placeholder="Enter member ID or QR code..."
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && val.trim()) { onSubmit(val.trim()); setVal(""); } }}
+        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/30 bg-gray-50"
+      />
+      <button
+        onClick={() => { if (val.trim()) { onSubmit(val.trim()); setVal(""); } }}
+        disabled={!val.trim() || scanning}
+        className="px-3 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl hover:bg-amber-600 disabled:opacity-50 transition-colors"
+      >
+        {scanning ? "..." : "Go"}
+      </button>
+    </div>
+  );
+}
 
 export default function WebsiteLayout({ children }) {
   const pathname = usePathname();
@@ -34,6 +118,9 @@ export default function WebsiteLayout({ children }) {
   const [mobileZoomOpen,  setMobileZoomOpen]  = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
+  const [qrOpen,    setQrOpen]    = useState(false);  // QR scanner modal
+  const [qrResult,  setQrResult]  = useState(null);   // scan result
+  const [qrScanning, setQrScanning] = useState(false);
   const [notifs,      setNotifs]      = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [upcomingClasses, setUpcomingClasses] = useState([]);
@@ -134,6 +221,21 @@ export default function WebsiteLayout({ children }) {
     router.push("/login");
   };
 
+  // ── QR Attendance checkin ──────────────────────────────────────
+  const handleQrCheckin = async (qrData) => {
+    if (qrScanning) return;
+    setQrScanning(true);
+    try {
+      const { api } = await import("@/lib/api");
+      const res = await api.post("/attendance/qr-checkin", { qrData, memberId: user?._id });
+      setQrResult({ success: true, message: res.message || "Attendance marked!", member: res.data?.memberName });
+    } catch (err) {
+      setQrResult({ success: false, message: err.message || "Invalid QR code." });
+    } finally {
+      setQrScanning(false);
+    }
+  };
+
   const isActive = (href) => mounted && (href === "/" ? pathname === "/" : pathname.startsWith(href));
   const initials = user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
@@ -180,8 +282,20 @@ export default function WebsiteLayout({ children }) {
 
           {/* Auth */}
           <div className="hidden md:flex gap-3 items-center">
-            {/* ── Zoom Live Classes icon ── */}
-            <div className="relative" ref={zoomRef}>
+            {/* ── Icons only shown when logged in ── */}
+            {mounted && loaded && user && (
+              <>
+                {/* ── QR Scanner icon ── */}
+                <button
+                  onClick={() => { setQrOpen(true); setQrResult(null); setZoomOpen(false); setNotifOpen(false); setProfileOpen(false); }}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all cursor-pointer"
+                  title="Scan QR for Attendance"
+                >
+                  <QrCode size={18} className="text-gray-600" />
+                </button>
+
+                {/* ── Zoom Live Classes icon ── */}
+                <div className="relative" ref={zoomRef}>
               <button
                 onClick={() => { setZoomOpen(v => !v); setNotifOpen(false); setProfileOpen(false); }}
                 className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all cursor-pointer"
@@ -330,6 +444,8 @@ export default function WebsiteLayout({ children }) {
                 )}
               </div>
             )}
+              </> /* end user-only icons */
+            )}
             {mounted && loaded && user ? (
               <div className="relative" ref={profileRef}>
                 <button onClick={() => setProfileOpen(v => !v)}
@@ -391,32 +507,44 @@ export default function WebsiteLayout({ children }) {
 
           {/* Mobile toggle */}
           <div className="md:hidden flex items-center gap-2">
-            {/* Mobile Zoom icon */}
-            <button
-              onClick={() => { setMobileZoomOpen(v => !v); setMobileNotifOpen(false); setMobileOpen(false); }}
-              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 transition-all"
-              title="Live Classes"
-            >
-              <Video size={18} className="text-gray-600" />
-              {upcomingClasses.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
-              )}
-            </button>
-
-            {/* Mobile Notifications icon — only when logged in */}
+            {/* Mobile icons — only when logged in */}
             {mounted && loaded && user && (
-              <button
-                onClick={() => { setMobileNotifOpen(v => !v); setMobileZoomOpen(false); setMobileOpen(false); }}
-                className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 transition-all"
-                title="Notifications"
-              >
-                <Bell size={18} className="text-gray-600" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-black text-white">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
+              <>
+                {/* QR Scanner */}
+                <button
+                  onClick={() => { setQrOpen(true); setQrResult(null); setMobileZoomOpen(false); setMobileNotifOpen(false); setMobileOpen(false); }}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 transition-all"
+                  title="Scan QR"
+                >
+                  <QrCode size={18} className="text-gray-600" />
+                </button>
+
+                {/* Mobile Zoom icon */}
+                <button
+                  onClick={() => { setMobileZoomOpen(v => !v); setMobileNotifOpen(false); setMobileOpen(false); }}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 transition-all"
+                  title="Live Classes"
+                >
+                  <Video size={18} className="text-gray-600" />
+                  {upcomingClasses.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                  )}
+                </button>
+
+                {/* Mobile Notifications icon */}
+                <button
+                  onClick={() => { setMobileNotifOpen(v => !v); setMobileZoomOpen(false); setMobileOpen(false); }}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-50 transition-all"
+                  title="Notifications"
+                >
+                  <Bell size={18} className="text-gray-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-black text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </>
             )}
 
             {/* Hamburger */}
@@ -590,6 +718,65 @@ export default function WebsiteLayout({ children }) {
           </div>
         )}
       </nav>
+
+      {/* ── QR Scanner Modal ── */}
+      {qrOpen && user && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <QrCode size={20} className="text-white" />
+                <p className="text-sm font-bold text-white">QR Attendance Scanner</p>
+              </div>
+              <button onClick={() => { setQrOpen(false); setQrResult(null); }}
+                className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
+                <X size={14} className="text-white" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              {qrResult ? (
+                /* Result screen */
+                <div className="text-center py-4">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${qrResult.success ? "bg-emerald-100" : "bg-red-100"}`}>
+                    {qrResult.success
+                      ? <span className="text-3xl">✅</span>
+                      : <span className="text-3xl">❌</span>
+                    }
+                  </div>
+                  <p className={`text-base font-bold mb-1 ${qrResult.success ? "text-emerald-700" : "text-red-600"}`}>
+                    {qrResult.success ? "Attendance Marked!" : "Failed"}
+                  </p>
+                  {qrResult.member && <p className="text-sm text-gray-600 mb-1">{qrResult.member}</p>}
+                  <p className="text-xs text-gray-500 mb-5">{qrResult.message}</p>
+                  <button
+                    onClick={() => setQrResult(null)}
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl text-sm"
+                  >
+                    Scan Again
+                  </button>
+                </div>
+              ) : (
+                /* Scanner UI */
+                <div>
+                  <p className="text-xs text-gray-500 text-center mb-4">
+                    Point your camera at the member's QR code to mark attendance
+                  </p>
+
+                  {/* Camera scanner using html5-qrcode */}
+                  <QrScannerView onScan={handleQrCheckin} scanning={qrScanning} />
+
+                  <p className="text-[10px] text-gray-400 text-center mt-3">
+                    Or enter member ID manually:
+                  </p>
+                  <ManualQrInput onSubmit={handleQrCheckin} scanning={qrScanning} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PAGE CONTENT ── */}
       <main className="flex-1">{children}</main>
