@@ -18,62 +18,119 @@ const NAV_ITEMS = [
   { label: "Contact",    href: "/contact" },
 ];
 
-// ── QR Scanner using device camera ────────────────────────────────
+// ── QR Scanner using device camera + jsQR ─────────────────────────
 function QrScannerView({ onScan, scanning }) {
-  const videoRef = React.useRef(null);
+  const videoRef   = React.useRef(null);
+  const canvasRef  = React.useRef(null);
+  const rafRef     = React.useRef(null);
   const [cameraError, setCameraError] = React.useState("");
-  const [active, setActive] = React.useState(false);
+  const [detected,    setDetected]    = React.useState(false);
 
   React.useEffect(() => {
     let stream = null;
-    let interval = null;
 
     const startCamera = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: 640, height: 480 },
+        });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          setActive(true);
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play();
+            scanFrame();
+          };
         }
       } catch {
         setCameraError("Camera not available. Use manual entry below.");
       }
     };
 
+    const scanFrame = () => {
+      const video  = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState !== 4) {
+        rafRef.current = requestAnimationFrame(scanFrame);
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // Dynamically import jsQR to avoid SSR issues
+      import("jsqr").then(({ default: jsQR }) => {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code?.data && !detected) {
+          setDetected(true);
+          onScan(code.data);
+          return; // stop scanning after detection
+        }
+
+        rafRef.current = requestAnimationFrame(scanFrame);
+      }).catch(() => {
+        rafRef.current = requestAnimationFrame(scanFrame);
+      });
+    };
+
     startCamera();
+
     return () => {
       if (stream) stream.getTracks().forEach(t => t.stop());
-      if (interval) clearInterval(interval);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
+  // Reset detected state when scanning resets
+  React.useEffect(() => {
+    if (!scanning) setDetected(false);
+  }, [scanning]);
+
   if (cameraError) {
     return (
-      <div className="bg-gray-100 rounded-xl h-48 flex items-center justify-center text-center px-4">
+      <div className="bg-gray-100 rounded-xl h-44 flex items-center justify-center text-center px-4">
         <p className="text-xs text-gray-500">{cameraError}</p>
       </div>
     );
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden bg-black h-48">
+    <div className="relative rounded-xl overflow-hidden bg-black h-44">
       <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-      {/* Scan overlay */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-36 h-36 border-2 border-amber-400 rounded-xl relative">
-          <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-amber-400 rounded-tl-lg" />
-          <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-amber-400 rounded-tr-lg" />
-          <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-amber-400 rounded-bl-lg" />
-          <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-amber-400 rounded-br-lg" />
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Scan frame overlay */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className={`w-36 h-36 rounded-xl relative transition-all ${detected ? "border-2 border-emerald-400" : "border-2 border-amber-400"}`}>
+          <div className={`absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 rounded-tl-lg ${detected ? "border-emerald-400" : "border-amber-400"}`} />
+          <div className={`absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 rounded-tr-lg ${detected ? "border-emerald-400" : "border-amber-400"}`} />
+          <div className={`absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 rounded-bl-lg ${detected ? "border-emerald-400" : "border-amber-400"}`} />
+          <div className={`absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 rounded-br-lg ${detected ? "border-emerald-400" : "border-amber-400"}`} />
+          {/* Scanning line animation */}
+          {!detected && !scanning && (
+            <div className="absolute left-1 right-1 h-0.5 bg-amber-400/70 animate-bounce" style={{ top: "50%" }} />
+          )}
         </div>
       </div>
-      {scanning && (
+
+      {/* Processing overlay */}
+      {(scanning || detected) && (
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div className="text-center">
+            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-1" />
+            <p className="text-white text-[10px]">Processing...</p>
+          </div>
         </div>
       )}
-      <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-white/70">
-        Align QR code within the frame
+
+      <p className="absolute bottom-1.5 left-0 right-0 text-center text-[10px] text-white/70">
+        {detected ? "QR detected!" : "Align QR code within the frame"}
       </p>
     </div>
   );
@@ -760,15 +817,15 @@ export default function WebsiteLayout({ children }) {
               ) : (
                 /* Scanner UI */
                 <div>
-                  <p className="text-xs text-gray-500 text-center mb-4">
-                    Point your camera at the member's QR code to mark attendance
+                  <p className="text-xs text-gray-500 text-center mb-3">
+                    Point camera at member's QR code — attendance marks automatically
                   </p>
 
-                  {/* Camera scanner using html5-qrcode */}
+                  {/* Camera scanner with jsQR auto-detection */}
                   <QrScannerView onScan={handleQrCheckin} scanning={qrScanning} />
 
                   <p className="text-[10px] text-gray-400 text-center mt-3">
-                    Or enter member ID manually:
+                    No QR code? Enter member ID manually:
                   </p>
                   <ManualQrInput onSubmit={handleQrCheckin} scanning={qrScanning} />
                 </div>
