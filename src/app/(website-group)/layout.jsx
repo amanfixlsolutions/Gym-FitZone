@@ -531,7 +531,7 @@ export default function WebsiteLayout({ children }) {
 
         {/* ── Mobile nav menu ── */}
         {mobileOpen && (
-          <div className="md:hidden bg-white shadow-xl py-4 px-4 flex flex-col gap-2">
+          <div className="md:hidden bg-white shadow-xl py-4 px-4 flex flex-col gap-1">
             {NAV_ITEMS.map((item) => (
               <Link key={item.href} href={item.href}
                 className={`py-2.5 px-3 rounded-lg font-medium transition-colors ${isActive(item.href) ? "text-amber-500 bg-amber-50" : "text-gray-600 hover:text-amber-500 hover:bg-amber-50"}`}>
@@ -540,16 +540,32 @@ export default function WebsiteLayout({ children }) {
             ))}
             <div className="pt-3 border-t border-gray-100 mt-1">
               {mounted && loaded && user ? (
-                <div>
-                  <div className="flex items-center gap-3 bg-amber-50 rounded-xl px-3 py-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-sm font-black shadow-sm flex-shrink-0">{initials}</div>
+                <div className="space-y-1">
+                  {/* User info card */}
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-3 py-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-white text-sm font-black flex-shrink-0">{initials}</div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-800 truncate">{user.name}</p>
-                      <p className="text-[10px] text-amber-600 font-semibold">{user.plan || "Member"} Plan</p>
-                      {gymName && <p className="text-[10px] text-gray-500 truncate">📍 {gymName}</p>}
+                      <p className="text-sm font-bold text-white truncate">{user.name}</p>
+                      <p className="text-[10px] text-amber-100 font-semibold">{user.plan || "Member"} Plan</p>
+                      {gymName && <p className="text-[10px] text-amber-100/80 truncate">📍 {gymName}</p>}
                     </div>
                   </div>
-                  <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-red-600 transition-colors">
+
+                  {/* Profile links */}
+                  {[
+                    { href: "/profile",      label: "👤 My Profile" },
+                    { href: "/achievements", label: "🏆 My Achievements" },
+                    { href: "/membership",   label: "💳 Membership" },
+                    { href: "/settings",     label: "⚙️ Settings" },
+                  ].map(item => (
+                    <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                      {item.label}
+                    </Link>
+                  ))}
+
+                  <button onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors mt-2">
                     <LogOut size={15} /> Sign Out
                   </button>
                 </div>
