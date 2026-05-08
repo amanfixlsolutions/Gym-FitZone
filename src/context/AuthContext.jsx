@@ -175,8 +175,20 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
+  // ── Refresh user data from backend ───────────────────────────
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await authAPI.getMe();
+      const normalized = saveUser(data.user);
+      setUser(normalized);
+      return normalized;
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loaded, loginUser, logoutUser, refreshSession }}>
+    <AuthContext.Provider value={{ user, loaded, loginUser, logoutUser, refreshSession, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

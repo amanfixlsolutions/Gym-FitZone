@@ -9,7 +9,7 @@ import { showSuccess, showError } from "@/lib/toast";
 const BG = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80";
 
 export default function ProfilePage() {
-  const { user, loaded, loginUser } = useAuth();
+  const { user, loaded, refreshUser } = useAuth();
   const router = useRouter();
 
   const [editing, setEditing] = useState(false);

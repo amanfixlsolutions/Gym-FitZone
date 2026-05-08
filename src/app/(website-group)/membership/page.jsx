@@ -42,7 +42,7 @@ const loadRazorpay = () =>
   });
 
 export default function MembershipPage() {
-  const { user, loaded } = useAuth();
+  const { user, loaded, refreshUser } = useAuth();
   const router = useRouter();
 
   const [plans,        setPlans]        = useState([]);
@@ -146,11 +146,13 @@ export default function MembershipPage() {
           email:   user.email,
           contact: user.phone || "",
         },
-        theme: { color: "#f59e0b" },
+        theme:  { color: "#f59e0b" },
+        // Mobile: use redirect mode as fallback
+        config: { display: { hide: [], preferences: { show_default_blocks: true } } },
         handler: async (response) => {
           try {
             // Verify payment
-            const verifyRes = await paymentAPI.verifyRazorpay({
+            await paymentAPI.verifyRazorpay({
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
@@ -166,17 +168,8 @@ export default function MembershipPage() {
             setPaySuccess({ name: plan.name, expiry });
             setPaying(null);
 
-            // Refresh user session to get updated plan
-            try {
-              const { authAPI } = await import("@/lib/api");
-              const meData = await authAPI.getMe();
-              // Update localStorage with new user data
-              if (typeof window !== "undefined") {
-                const normalized = meData.user;
-                window.sessionStorage?.setItem("fitzone_user", JSON.stringify(normalized));
-                window.localStorage?.setItem("fitzone_user", JSON.stringify(normalized));
-              }
-            } catch { /* silent */ }
+            // ── Refresh user in AuthContext so navbar updates ──────
+            await refreshUser();
 
           } catch (err) {
             setPayError(err.message || "Payment verification failed.");
@@ -184,13 +177,15 @@ export default function MembershipPage() {
           }
         },
         modal: {
-          ondismiss: () => setPaying(null),
+          ondismiss:   () => setPaying(null),
+          escape:      false,
+          backdropclose: false,
         },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", (response) => {
-        setPayError(response.error?.description || "Payment failed.");
+        setPayError(response.error?.description || "Payment failed. Please try again.");
         setPaying(null);
       });
       rzp.open();
@@ -199,7 +194,7 @@ export default function MembershipPage() {
       setPayError(err.message || "Failed to initiate payment.");
       setPaying(null);
     }
-  }, [user, loaded, billingCycle, router]);
+  }, [user, loaded, billingCycle, router, refreshUser]);
 
   return (
     <div className="bg-white">
@@ -230,8 +225,7 @@ export default function MembershipPage() {
               className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:shadow-lg transition-all"
             >
               Start Your Journey →
-            </button>
-          </div>
+            </button>          </div>
         </div>
       )}
 
