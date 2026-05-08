@@ -161,8 +161,8 @@ export const api = {
 
 // ── Auth APIs ──────────────────────────────────────────────────────
 export const authAPI = {
-  sendOTP:         (email, type = "signup", gymId = null) => api.post("/auth/send-otp", { email, type, ...(gymId && { gymId }) }),
-  verifyOTP:       (email, otp, type = "signup", gymId = null) => api.post("/auth/verify-otp", { email, otp, type, ...(gymId && { gymId }) }),
+  sendOTP:         (email, type = "signup") => api.post("/auth/send-otp", { email, type }),
+  verifyOTP:       (email, otp, type = "signup") => api.post("/auth/verify-otp", { email, otp, type }),
   register:        (data)            => api.post("/auth/register", data),
   login:           (email, password) => api.post("/auth/login", { email, password }),
   getMe:           ()                => api.get("/auth/me"),
@@ -184,7 +184,6 @@ export const analyticsAPI = {
 // ── Gym APIs ───────────────────────────────────────────────────────
 export const gymAPI = {
   getAll:          (params = {}) => api.get(`/gyms?${new URLSearchParams(params)}`),
-  getPublic:       ()            => api.get("/gyms/public"),
   getOne:          (id)          => api.get(`/gyms/${id}`),
   create:          (data)        => api.post("/gyms", data),
   createWithOwner: (data)        => api.post("/gyms/create-with-owner", data),

@@ -57,17 +57,7 @@ export default function MembershipPage() {
     const fetchPlans = async () => {
       setLoading(true);
       try {
-        // Get gymId from stored user — show this gym's plans + platform-wide plans
-        let gymId = null;
-        try {
-          const stored = window.sessionStorage?.getItem("fitzone_user") || window.localStorage?.getItem("fitzone_user");
-          if (stored) gymId = JSON.parse(stored)?.gym?._id || JSON.parse(stored)?.gym || null;
-        } catch {}
-
-        const params = { limit: 20 };
-        if (gymId) params.gymId = gymId;
-
-        const res = await planAPI.getPublic(params);
+        const res = await planAPI.getPublic({ limit: 20 });
         setPlans(res.data || []);
       } catch {
         setPlans([]);
