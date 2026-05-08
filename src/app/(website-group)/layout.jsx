@@ -210,33 +210,25 @@ export default function WebsiteLayout({ children }) {
                                 <p className="text-[10px] text-gray-500 mt-1">{lc.isFree ? "Free" : `₹${lc.price}`}</p>
                               </div>
                             </div>
-                            {/* Join button — show for live classes with URL, or all classes */}
+                            {/* Book/Join button */}
                             <div className="mt-2 flex gap-2">
-                              {isLive && hasJoinUrl ? (
-                                <a
-                                  href={lc.zoomJoinUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                              {isLive ? (
+                                <Link
+                                  href="/live-classes"
                                   onClick={() => setZoomOpen(false)}
                                   className="flex-1 text-center py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
                                 >
                                   <Video size={11} /> Join Now →
-                                </a>
-                              ) : isLive && !hasJoinUrl ? (
-                                <span className="flex-1 text-center py-1.5 bg-gray-100 text-gray-400 text-xs rounded-lg">
-                                  Link not available
-                                </span>
-                              ) : hasJoinUrl ? (
-                                <a
-                                  href={lc.zoomJoinUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                </Link>
+                              ) : (
+                                <Link
+                                  href="/live-classes"
                                   onClick={() => setZoomOpen(false)}
                                   className="flex-1 text-center py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
                                 >
-                                  <Video size={11} /> Open Zoom
-                                </a>
-                              ) : null}
+                                  Book Class →
+                                </Link>
+                              )}
                             </div>
                           </div>
                         );
@@ -437,27 +429,23 @@ export default function WebsiteLayout({ children }) {
                         </div>
                       </div>
                       <div className="mt-2">
-                        {isLive && hasJoinUrl ? (
-                          <a
-                            href={lc.zoomJoinUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {isLive ? (
+                          <Link
+                            href="/live-classes"
                             onClick={() => setMobileZoomOpen(false)}
                             className="block w-full text-center py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors"
                           >
                             🔴 Join Now →
-                          </a>
-                        ) : hasJoinUrl ? (
-                          <a
-                            href={lc.zoomJoinUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/live-classes"
                             onClick={() => setMobileZoomOpen(false)}
                             className="block w-full text-center py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
                           >
-                            Open Zoom Link
-                          </a>
-                        ) : null}
+                            Book Class →
+                          </Link>
+                        )}
                       </div>
                     </div>
                   );
