@@ -261,6 +261,10 @@ export const paymentAPI = {
   confirmStripe:       (data)        => api.post("/payments/confirm-stripe", data),
   createManual:        (data)        => api.post("/payments/manual", data),
   revenue:             ()            => api.get("/payments/revenue"),
+  // Gym platform subscription
+  gymSubStatus:        ()            => api.get("/payments/gym-subscription/status"),
+  gymSubCreateOrder:   (data)        => api.post("/payments/gym-subscription/create-order", data),
+  gymSubVerify:        (data)        => api.post("/payments/gym-subscription/verify", data),
 };
 
 // ── Invoice APIs ───────────────────────────────────────────────────

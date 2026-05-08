@@ -3,12 +3,13 @@ import { useState, useEffect, useCallback } from "react";
 import RoleDashboardLayout from "@/components/RoleDashboardLayout";
 import { GYM_OWNER_NAV } from "@/lib/gymOwnerNav";
 import { useAuth } from "@/context/AuthContext";
-import { settingsAPI } from "@/lib/api";
+import { settingsAPI, paymentAPI } from "@/lib/api";
 import { showSuccess, showError } from "@/lib/toast";
 import {
   User, Bell, CreditCard, Save, Clock, RefreshCw,
   AlertCircle, Check, Building2, Mail, Phone, Globe,
-  ToggleLeft, ToggleRight, ChevronRight,
+  ToggleLeft, ToggleRight, ChevronRight, Zap, Crown,
+  Shield, Star, CheckCircle2, AlertTriangle, ExternalLink,
 } from "lucide-react";
 
 const TABS = [
@@ -55,28 +56,67 @@ export default function Page() {
     nextBillingDate: "", paymentMethod: "", cardLast4: "",
   });
 
+  // ── Platform subscription state ────────────────────────────────
+  const [subStatus,     setSubStatus]     = useState(null);   // from backend
+  const [subLoading,    setSubLoading]    = useState(false);
+  const [selectedPlan,  setSelectedPlan]  = useState("Professional");
+  const [billingCycle,  setBillingCycleS] = useState("monthly");
+
+  // Platform plan config (must match backend PLATFORM_PLANS)
+  const PLATFORM_PLANS = {
+    Basic:        { monthly: 999,  yearly: 9590,  icon: Zap,    color: "blue",   features: ["Up to 100 members", "Basic analytics", "Email support", "QR attendance"] },
+    Professional: { monthly: 2499, yearly: 23990, icon: Star,   color: "violet", features: ["Unlimited members", "Advanced analytics", "Priority support", "Zoom classes", "Custom branding"], popular: true },
+    Enterprise:   { monthly: 4999, yearly: 47990, icon: Crown,  color: "amber",  features: ["Multi-gym support", "Custom branding", "Dedicated manager", "API access", "White-label"] },
+  };
+
+  const planColorMap = {
+    "blue-border":   "border-blue-500",
+    "violet-border": "border-violet-500",
+    "amber-border":  "border-amber-500",
+    "blue-bg":       "bg-blue-50 dark:bg-blue-900/20",
+    "violet-bg":     "bg-violet-50 dark:bg-violet-900/20",
+    "amber-bg":      "bg-amber-50 dark:bg-amber-900/20",
+    "blue-text":     "text-blue-600",
+    "violet-text":   "text-violet-600",
+    "amber-text":    "text-amber-600",
+    "blue-badge":    "bg-blue-600",
+    "violet-badge":  "bg-violet-600",
+    "amber-badge":   "bg-amber-600",
+    "blue-btn":      "bg-blue-600 hover:bg-blue-700",
+    "violet-btn":    "bg-violet-600 hover:bg-violet-700",
+    "amber-btn":     "bg-amber-600 hover:bg-amber-700",
+  };
+
   // ── Fetch settings ─────────────────────────────────────────────
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await settingsAPI.get();
-      const s = res.data;
-      setSettings(s);
+      const [res, subRes] = await Promise.allSettled([
+        settingsAPI.get(),
+        paymentAPI.gymSubStatus(),
+      ]);
 
-      if (s.gym_settings) {
-        setProfile(prev => ({ ...prev, ...s.gym_settings }));
-      }
-      if (s.timings) {
-        setTimings(prev => {
-          const updated = { ...prev };
-          DAYS.forEach(d => {
-            if (s.timings[d]) updated[d] = { ...prev[d], ...s.timings[d] };
+      if (res.status === "fulfilled") {
+        const s = res.value.data;
+        setSettings(s);
+        if (s.gym_settings) setProfile(prev => ({ ...prev, ...s.gym_settings }));
+        if (s.timings) {
+          setTimings(prev => {
+            const updated = { ...prev };
+            DAYS.forEach(d => { if (s.timings[d]) updated[d] = { ...prev[d], ...s.timings[d] }; });
+            return updated;
           });
-          return updated;
-        });
+        }
+        if (s.notifications) setNotifs(prev => ({ ...prev, ...s.notifications }));
+        if (s.billing)       setBilling(prev => ({ ...prev, ...s.billing }));
       }
-      if (s.notifications) setNotifs(prev => ({ ...prev, ...s.notifications }));
-      if (s.billing)       setBilling(prev => ({ ...prev, ...s.billing }));
+
+      if (subRes.status === "fulfilled") {
+        const sub = subRes.value.data;
+        setSubStatus(sub);
+        if (sub.subscription?.plan) setSelectedPlan(sub.subscription.plan);
+        if (sub.subscription?.billingCycle) setBillingCycleS(sub.subscription.billingCycle);
+      }
     } catch (err) {
       if (!err.message?.includes("session")) showError("Failed to load settings");
     } finally {
@@ -118,6 +158,80 @@ export default function Page() {
       showError(err.message || "Failed to save settings");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Handle platform subscription payment ──────────────────────
+  const handleSubscribePayment = async () => {
+    setSubLoading(true);
+    try {
+      // Step 1: Create order
+      const orderRes = await paymentAPI.gymSubCreateOrder({ plan: selectedPlan, billingCycle });
+      const { orderId, amount, currency, keyId, gymName } = orderRes.data;
+
+      // Step 2: Open Razorpay
+      const options = {
+        key:         keyId,
+        amount,
+        currency,
+        name:        "FitZone Platform",
+        description: `${selectedPlan} Plan — ${billingCycle === "yearly" ? "Yearly" : "Monthly"}`,
+        order_id:    orderId,
+        prefill: {
+          name:  user?.name  || gymName,
+          email: user?.email || "",
+        },
+        theme: { color: "#7c3aed" },
+        handler: async (response) => {
+          try {
+            const verifyRes = await paymentAPI.gymSubVerify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              plan:                selectedPlan,
+              billingCycle,
+            });
+            showSuccess(verifyRes.message || "Subscription activated!");
+            fetchSettings(); // refresh subscription status
+          } catch (err) {
+            showError(err.message || "Payment verification failed");
+          } finally {
+            setSubLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setSubLoading(false),
+        },
+      };
+
+      if (typeof window !== "undefined" && window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", (resp) => {
+          showError(`Payment failed: ${resp.error.description}`);
+          setSubLoading(false);
+        });
+        rzp.open();
+      } else {
+        // Load Razorpay script dynamically
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => {
+          const rzp = new window.Razorpay(options);
+          rzp.on("payment.failed", (resp) => {
+            showError(`Payment failed: ${resp.error.description}`);
+            setSubLoading(false);
+          });
+          rzp.open();
+        };
+        script.onerror = () => {
+          showError("Failed to load payment gateway. Please try again.");
+          setSubLoading(false);
+        };
+        document.body.appendChild(script);
+      }
+    } catch (err) {
+      showError(err.message || "Failed to initiate payment");
+      setSubLoading(false);
     }
   };
 
@@ -368,109 +482,215 @@ export default function Page() {
               {/* ── BILLING ── */}
               {activeTab === "billing" && (
                 <div className="space-y-4">
-                  {/* Current plan */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-5 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-blue-200 text-xs font-semibold uppercase tracking-wide">Current Plan</p>
-                        <p className="text-2xl font-black mt-1">{billing.planName || "Basic"}</p>
-                        <p className="text-blue-200 text-sm mt-1">
-                          Billed {billing.billingCycle === "yearly" ? "yearly" : "monthly"}
-                          {billing.nextBillingDate && ` · Next: ${new Date(billing.nextBillingDate).toLocaleDateString("en-IN")}`}
-                        </p>
-                      </div>
-                      <div className="bg-white/20 rounded-xl p-3 text-center">
-                        <CreditCard size={28} className="text-white" />
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 space-y-4">
-                    <div className="flex items-center gap-2 pb-3 border-b border-[var(--border)]">
-                      <CreditCard size={18} className="text-blue-600" />
-                      <h3 className="font-semibold text-[var(--text)]">Billing Settings</h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelCls}>Billing Cycle</label>
-                        <select value={billing.billingCycle} onChange={e => setBilling(p => ({ ...p, billingCycle: e.target.value }))} className={inputCls}>
-                          <option value="monthly">Monthly</option>
-                          <option value="yearly">Yearly (Save 20%)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Payment Method</label>
-                        <input type="text" value={billing.paymentMethod} onChange={e => setBilling(p => ({ ...p, paymentMethod: e.target.value }))} placeholder="Credit Card / UPI / Bank Transfer" className={inputCls} />
-                      </div>
-                      {billing.cardLast4 && (
+                  {/* Current subscription status banner */}
+                  {subStatus && (
+                    <div className={`rounded-xl p-5 text-white ${
+                      subStatus.gymStatus === "active" && subStatus.subscription?.status === "active"
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700"
+                        : subStatus.gymStatus === "pending"
+                        ? "bg-gradient-to-r from-amber-500 to-orange-600"
+                        : "bg-gradient-to-r from-red-600 to-red-700"
+                    }`}>
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <label className={labelCls}>Card on File</label>
-                          <input type="text" value={`•••• •••• •••• ${billing.cardLast4}`} readOnly className={`${inputCls} opacity-60 cursor-not-allowed`} />
+                          <p className="text-white/80 text-xs font-semibold uppercase tracking-wide">
+                            {subStatus.gymStatus === "active" && subStatus.subscription?.status === "active"
+                              ? "Active Subscription"
+                              : subStatus.gymStatus === "pending"
+                              ? "Pending Activation"
+                              : "Subscription Required"}
+                          </p>
+                          <p className="text-2xl font-black mt-1">
+                            {subStatus.subscription?.plan || "No Plan"}
+                          </p>
+                          <p className="text-white/80 text-sm mt-1">
+                            {subStatus.subscription?.status === "active" && subStatus.subscription?.expiryDate
+                              ? `Renews on ${new Date(subStatus.subscription.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                              : subStatus.gymStatus === "pending"
+                              ? "Pay to activate your gym and go live"
+                              : "Subscribe to activate your gym"}
+                          </p>
                         </div>
+                        <div className="bg-white/20 rounded-xl p-3 flex-shrink-0">
+                          {subStatus.gymStatus === "active" && subStatus.subscription?.status === "active"
+                            ? <CheckCircle2 size={28} className="text-white" />
+                            : <AlertTriangle size={28} className="text-white" />
+                          }
+                        </div>
+                      </div>
+                      {subStatus.subscription?.lastPaidAt && (
+                        <p className="text-white/60 text-xs mt-3">
+                          Last payment: ₹{subStatus.subscription.lastPaymentAmount?.toLocaleString()} on {new Date(subStatus.subscription.lastPaidAt).toLocaleDateString("en-IN")}
+                        </p>
                       )}
                     </div>
+                  )}
 
-                    <Toggle
-                      checked={billing.autoRenew}
-                      onChange={v => setBilling(p => ({ ...p, autoRenew: v }))}
-                      label="Auto-renew subscription"
-                      desc="Automatically renew before expiry"
-                    />
-
-                    {/* Plan options */}
-                    <div className="pt-3 border-t border-[var(--border)]">
-                      <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Available Plans</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {[
-                          { name: "Basic",        price: "₹999/mo",  features: ["Up to 100 members", "Basic analytics", "Email support"] },
-                          { name: "Professional", price: "₹2,499/mo", features: ["Unlimited members", "Advanced analytics", "Priority support", "Zoom classes"], popular: true },
-                          { name: "Enterprise",   price: "₹4,999/mo", features: ["Multi-gym", "Custom branding", "Dedicated manager", "API access"] },
-                        ].map(plan => (
-                          <div
-                            key={plan.name}
-                            onClick={() => setBilling(p => ({ ...p, planName: plan.name }))}
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${billing.planName === plan.name ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-[var(--border)] hover:border-blue-300"} ${plan.popular ? "relative" : ""}`}
+                  {/* Billing cycle toggle */}
+                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <h3 className="font-semibold text-[var(--text)]">Platform Subscription</h3>
+                        <p className="text-xs text-[var(--muted)] mt-0.5">Choose a plan to activate and run your gym on FitZone</p>
+                      </div>
+                      {/* Billing cycle switch */}
+                      <div className="flex items-center bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-1 gap-1">
+                        {["monthly", "yearly"].map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setBillingCycleS(c)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                              billingCycle === c
+                                ? "bg-violet-600 text-white shadow-sm"
+                                : "text-[var(--muted)] hover:text-[var(--text)]"
+                            }`}
                           >
-                            {plan.popular && (
-                              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full whitespace-nowrap">
-                                POPULAR
-                              </span>
-                            )}
-                            <p className="font-bold text-[var(--text)] text-sm">{plan.name}</p>
-                            <p className="text-blue-600 font-semibold text-xs mt-0.5">{plan.price}</p>
-                            <ul className="mt-2 space-y-1">
-                              {plan.features.map(f => (
-                                <li key={f} className="flex items-center gap-1.5 text-[10px] text-[var(--muted)]">
-                                  <Check size={10} className="text-emerald-500 flex-shrink-0" />{f}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                            {c === "monthly" ? "Monthly" : "Yearly −20%"}
+                          </button>
                         ))}
                       </div>
                     </div>
+
+                    {/* Plan cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {Object.entries(PLATFORM_PLANS).map(([planName, planData]) => {
+                        const isSelected = selectedPlan === planName;
+                        const price = planData[billingCycle];
+                        const Icon = planData.icon;
+                        const c = planData.color;
+                        const isCurrentPlan = subStatus?.subscription?.plan === planName && subStatus?.subscription?.status === "active";
+
+                        return (
+                          <div
+                            key={planName}
+                            onClick={() => setSelectedPlan(planName)}
+                            className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? `${planColorMap[`${c}-border`]} ${planColorMap[`${c}-bg`]}`
+                                : "border-[var(--border)] hover:border-[var(--muted2)]"
+                            }`}
+                          >
+                            {planData.popular && (
+                              <span className={`absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold ${planColorMap[`${c}-badge`]} text-white px-2.5 py-0.5 rounded-full whitespace-nowrap`}>
+                                POPULAR
+                              </span>
+                            )}
+                            {isCurrentPlan && (
+                              <span className="absolute -top-2.5 right-3 text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                                ACTIVE
+                              </span>
+                            )}
+
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${planColorMap[`${c}-bg`]}`}>
+                                <Icon size={14} className={planColorMap[`${c}-text`]} />
+                              </div>
+                              <p className="font-bold text-[var(--text)] text-sm">{planName}</p>
+                            </div>
+
+                            <p className={`font-black text-lg ${planColorMap[`${c}-text`]}`}>
+                              ₹{price.toLocaleString()}
+                              <span className="text-xs font-normal text-[var(--muted)]">/{billingCycle === "yearly" ? "yr" : "mo"}</span>
+                            </p>
+                            {billingCycle === "yearly" && (
+                              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                Save ₹{((PLATFORM_PLANS[planName].monthly * 12) - price).toLocaleString()}/yr
+                              </p>
+                            )}
+
+                            <ul className="mt-3 space-y-1.5">
+                              {planData.features.map(f => (
+                                <li key={f} className="flex items-start gap-1.5 text-[11px] text-[var(--muted)]">
+                                  <Check size={10} className="text-emerald-500 flex-shrink-0 mt-0.5" />{f}
+                                </li>
+                              ))}
+                            </ul>
+
+                            {isSelected && (
+                              <div className={`mt-3 flex items-center gap-1 text-[11px] font-semibold ${planColorMap[`${c}-text`]}`}>
+                                <CheckCircle2 size={12} /> Selected
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Payment summary + CTA */}
+                    <div className="mt-5 pt-4 border-t border-[var(--border)]">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text)]">
+                            {selectedPlan} — {billingCycle === "yearly" ? "Yearly" : "Monthly"}
+                          </p>
+                          <p className="text-xs text-[var(--muted)] mt-0.5">
+                            ₹{PLATFORM_PLANS[selectedPlan]?.[billingCycle]?.toLocaleString()} charged via Razorpay · Secure payment
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleSubscribePayment}
+                          disabled={subLoading}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors text-sm cursor-pointer whitespace-nowrap"
+                        >
+                          {subLoading
+                            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            : <CreditCard size={15} />
+                          }
+                          {subLoading
+                            ? "Processing..."
+                            : subStatus?.subscription?.status === "active"
+                            ? "Renew / Upgrade"
+                            : "Pay & Activate Gym"}
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-[var(--muted2)] mt-3 flex items-center gap-1">
+                        <Shield size={11} className="flex-shrink-0" />
+                        Payments are secured by Razorpay. Your gym will be activated immediately after payment.
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Billing history note */}
+                  {subStatus?.subscription?.lastPaidAt && (
+                    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
+                      <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Last Payment</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text)]">{subStatus.subscription.plan} Plan</p>
+                          <p className="text-xs text-[var(--muted)] mt-0.5">
+                            {new Date(subStatus.subscription.lastPaidAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                          </p>
+                        </div>
+                        <p className="text-lg font-black text-emerald-600">
+                          ₹{subStatus.subscription.lastPaymentAmount?.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Save button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors font-medium cursor-pointer"
-                >
-                  {saving ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : saved ? (
-                    <Check size={15} />
-                  ) : (
-                    <Save size={15} />
-                  )}
-                  {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
-                </button>
-              </div>
+              {/* Save button — hidden on billing tab */}
+              {activeTab !== "billing" && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors font-medium cursor-pointer"
+                  >
+                    {saving ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : saved ? (
+                      <Check size={15} />
+                    ) : (
+                      <Save size={15} />
+                    )}
+                    {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
