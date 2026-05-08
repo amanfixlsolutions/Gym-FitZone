@@ -33,6 +33,7 @@ export default function WebsiteLayout({ children }) {
   // Mobile-specific panel states
   const [mobileZoomOpen,  setMobileZoomOpen]  = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const [notifs,      setNotifs]      = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [upcomingClasses, setUpcomingClasses] = useState([]);
@@ -48,7 +49,7 @@ export default function WebsiteLayout({ children }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => { setMobileOpen(false); setProfileOpen(false); setNotifOpen(false); setZoomOpen(false); setMobileZoomOpen(false); setMobileNotifOpen(false); }, [pathname]);
+  useEffect(() => { setMobileOpen(false); setProfileOpen(false); setNotifOpen(false); setZoomOpen(false); setMobileZoomOpen(false); setMobileNotifOpen(false); setMobileProfileOpen(false); }, [pathname]);
 
   useEffect(() => {
     const fn = (e) => {
@@ -541,31 +542,41 @@ export default function WebsiteLayout({ children }) {
             <div className="pt-3 border-t border-gray-100 mt-1">
               {mounted && loaded && user ? (
                 <div className="space-y-1">
-                  {/* User info card */}
-                  <div className="flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-3 py-3 mb-2">
+                  {/* Clickable profile card — toggles dropdown */}
+                  <button
+                    onClick={() => setMobileProfileOpen(v => !v)}
+                    className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-3 py-3 mb-1 text-left"
+                  >
                     <div className="w-10 h-10 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-white text-sm font-black flex-shrink-0">{initials}</div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-white truncate">{user.name}</p>
                       <p className="text-[10px] text-amber-100 font-semibold">{user.plan || "Member"} Plan</p>
                       {gymName && <p className="text-[10px] text-amber-100/80 truncate">📍 {gymName}</p>}
                     </div>
-                  </div>
+                    <ChevronDown size={16} className={`text-white/80 flex-shrink-0 transition-transform duration-200 ${mobileProfileOpen ? "rotate-180" : ""}`} />
+                  </button>
 
-                  {/* Profile links */}
-                  {[
-                    { href: "/profile",      label: "👤 My Profile" },
-                    { href: "/achievements", label: "🏆 My Achievements" },
-                    { href: "/membership",   label: "💳 Membership" },
-                    { href: "/settings",     label: "⚙️ Settings" },
-                  ].map(item => (
-                    <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                      {item.label}
-                    </Link>
-                  ))}
+                  {/* Collapsible profile links */}
+                  {mobileProfileOpen && (
+                    <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 mb-1">
+                      {[
+                        { href: "/profile",      icon: "👤", label: "My Profile" },
+                        { href: "/achievements", icon: "🏆", label: "My Achievements" },
+                        { href: "/membership",   icon: "💳", label: "Membership" },
+                        { href: "/settings",     icon: "⚙️", label: "Settings" },
+                      ].map((item, i) => (
+                        <Link key={item.href} href={item.href}
+                          onClick={() => { setMobileOpen(false); setMobileProfileOpen(false); }}
+                          className={`flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors ${i < 3 ? "border-b border-gray-100" : ""}`}>
+                          <span className="text-base">{item.icon}</span>
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
 
                   <button onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors mt-2">
+                    className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors">
                     <LogOut size={15} /> Sign Out
                   </button>
                 </div>
