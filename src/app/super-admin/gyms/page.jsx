@@ -7,7 +7,7 @@ import { confirmToast, showSuccess, showError } from "@/lib/toast";
 import {
   Search, CheckCircle, XCircle, Eye, MapPin, Star,
   X, RefreshCw, Building2, Users, Mail, Phone,
-  AlertTriangle, Calendar, ChevronDown,
+  AlertTriangle, Calendar, ChevronDown, Plus, User, Lock,
 } from "lucide-react";
 
 const statusConfig = {
@@ -19,6 +19,11 @@ const statusConfig = {
 
 const FILTERS = ["All", "Pending", "Active", "Suspended", "Rejected"];
 
+const EMPTY_FORM = {
+  ownerName: "", ownerEmail: "", ownerPassword: "", ownerPhone: "",
+  gymName: "", city: "", address: "", phone: "", description: "",
+};
+
 export default function Page() {
   const [gyms,         setGyms]         = useState([]);
   const [stats,        setStats]        = useState({ total: 0, active: 0, pending: 0, suspended: 0 });
@@ -27,8 +32,14 @@ export default function Page() {
   const [filter,       setFilter]       = useState("All");
   const [actionId,     setActionId]     = useState(null);
   const [viewGym,      setViewGym]      = useState(null);
-  const [rejectModal,  setRejectModal]  = useState(null); // gym to reject
+  const [rejectModal,  setRejectModal]  = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  // ── Create Gym Owner modal state ───────────────────────────────
+  const [createModal,  setCreateModal]  = useState(false);
+  const [createForm,   setCreateForm]   = useState(EMPTY_FORM);
+  const [createLoading,setCreateLoading]= useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // ── Fetch gyms ─────────────────────────────────────────────────
   const fetchGyms = useCallback(async () => {
@@ -107,6 +118,32 @@ export default function Page() {
     }
   };
 
+  // ── Create Gym + Owner ─────────────────────────────────────────
+  const handleCreateGymOwner = async (e) => {
+    e.preventDefault();
+    const { ownerName, ownerEmail, ownerPassword, gymName, city } = createForm;
+    if (!ownerName.trim() || !ownerEmail.trim() || !ownerPassword.trim() || !gymName.trim() || !city.trim()) {
+      showError("Please fill in all required fields.");
+      return;
+    }
+    if (ownerPassword.length < 6) {
+      showError("Password must be at least 6 characters.");
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      const res = await gymAPI.createWithOwner(createForm);
+      showSuccess(`Gym "${res.data.gym.name}" and owner account created!`);
+      setCreateModal(false);
+      setCreateForm(EMPTY_FORM);
+      fetchGyms();
+    } catch (err) {
+      showError(err.message || "Failed to create gym owner");
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   // ── Reactivate ─────────────────────────────────────────────────
   const handleReactivate = async (gym) => {
     const confirmed = await confirmToast(`Reactivate "${gym.name}"?`);
@@ -162,9 +199,19 @@ export default function Page() {
             <h1 className="text-xl md:text-2xl font-bold text-[var(--text)]">Gym Management</h1>
             <p className="text-sm text-[var(--muted)] mt-0.5">Review, approve or suspend gyms on the platform</p>
           </div>
-          <button onClick={fetchGyms} className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface2)] transition-colors cursor-pointer" title="Refresh">
-            <RefreshCw size={15} className={`text-[var(--muted)] ${loading ? "animate-spin" : ""}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setCreateForm(EMPTY_FORM); setShowPassword(false); setCreateModal(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Create Gym Owner</span>
+              <span className="sm:hidden">New</span>
+            </button>
+            <button onClick={fetchGyms} className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface2)] transition-colors cursor-pointer" title="Refresh">
+              <RefreshCw size={15} className={`text-[var(--muted)] ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -435,6 +482,204 @@ export default function Page() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CREATE GYM OWNER MODAL ── */}
+      {createModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => !createLoading && setCreateModal(false)}>
+          <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-violet-600 to-purple-700 p-5 rounded-t-2xl relative">
+              <button
+                onClick={() => !createLoading && setCreateModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white cursor-pointer transition-colors"
+              >
+                <X size={16} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Building2 size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white">Create Gym Owner</h2>
+                  <p className="text-violet-200 text-xs mt-0.5">Create a gym + owner account instantly</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateGymOwner} className="p-5 space-y-5">
+              {/* Owner Info */}
+              <div>
+                <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <User size={12} /> Owner Information
+                </p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.ownerName}
+                        onChange={e => setCreateForm(p => ({ ...p, ownerName: e.target.value }))}
+                        placeholder="John Doe"
+                        required
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={createForm.ownerPhone}
+                        onChange={e => setCreateForm(p => ({ ...p, ownerPhone: e.target.value }))}
+                        placeholder="+91 98765 43210"
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={createForm.ownerEmail}
+                      onChange={e => setCreateForm(p => ({ ...p, ownerEmail: e.target.value }))}
+                      placeholder="owner@example.com"
+                      required
+                      className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={createForm.ownerPassword}
+                        onChange={e => setCreateForm(p => ({ ...p, ownerPassword: e.target.value }))}
+                        placeholder="Min. 6 characters"
+                        required
+                        minLength={6}
+                        className="w-full px-3 py-2 pr-10 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(p => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
+                      >
+                        <Lock size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-[var(--border)]" />
+
+              {/* Gym Info */}
+              <div>
+                <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Building2 size={12} /> Gym Information
+                </p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">
+                        Gym Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.gymName}
+                        onChange={e => setCreateForm(p => ({ ...p, gymName: e.target.value }))}
+                        placeholder="FitZone Premium"
+                        required
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">
+                        City <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.city}
+                        onChange={e => setCreateForm(p => ({ ...p, city: e.target.value }))}
+                        placeholder="Mumbai"
+                        required
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">Gym Phone</label>
+                      <input
+                        type="tel"
+                        value={createForm.phone}
+                        onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))}
+                        placeholder="+91 98765 43210"
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--muted)] block mb-1">Address</label>
+                      <input
+                        type="text"
+                        value={createForm.address}
+                        onChange={e => setCreateForm(p => ({ ...p, address: e.target.value }))}
+                        placeholder="123 Main Street"
+                        className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] block mb-1">Description</label>
+                    <textarea
+                      rows={2}
+                      value={createForm.description}
+                      onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))}
+                      placeholder="Brief description of the gym..."
+                      className="w-full px-3 py-2 text-sm bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder:text-[var(--muted2)] focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Info note */}
+              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl px-4 py-3 text-xs text-violet-700 dark:text-violet-300">
+                The gym will be <strong>immediately active</strong> — no approval needed. A welcome email will be sent to the owner.
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => !createLoading && setCreateModal(false)}
+                  className="flex-1 py-2.5 border border-[var(--border)] text-[var(--text)] font-medium rounded-xl hover:bg-[var(--surface2)] transition-colors text-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="flex-1 py-2.5 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-60 transition-colors text-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {createLoading
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <Plus size={15} />
+                  }
+                  {createLoading ? "Creating..." : "Create Gym Owner"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

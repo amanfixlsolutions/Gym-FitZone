@@ -183,15 +183,16 @@ export const analyticsAPI = {
 
 // ── Gym APIs ───────────────────────────────────────────────────────
 export const gymAPI = {
-  getAll:   (params = {}) => api.get(`/gyms?${new URLSearchParams(params)}`),
-  getOne:   (id)          => api.get(`/gyms/${id}`),
-  create:   (data)        => api.post("/gyms", data),
-  update:   (id, data)    => api.put(`/gyms/${id}`, data),
-  delete:   (id)          => api.delete(`/gyms/${id}`),
-  approve:  (id)          => api.post(`/gyms/${id}/approve`, {}),
-  reject:   (id, reason)  => api.post(`/gyms/${id}/reject`, { reason }),
-  suspend:  (id)          => api.post(`/gyms/${id}/suspend`, {}),
-  stats:    ()            => api.get("/gyms/stats"),
+  getAll:          (params = {}) => api.get(`/gyms?${new URLSearchParams(params)}`),
+  getOne:          (id)          => api.get(`/gyms/${id}`),
+  create:          (data)        => api.post("/gyms", data),
+  createWithOwner: (data)        => api.post("/gyms/create-with-owner", data),
+  update:          (id, data)    => api.put(`/gyms/${id}`, data),
+  delete:          (id)          => api.delete(`/gyms/${id}`),
+  approve:         (id)          => api.post(`/gyms/${id}/approve`, {}),
+  reject:          (id, reason)  => api.post(`/gyms/${id}/reject`, { reason }),
+  suspend:         (id)          => api.post(`/gyms/${id}/suspend`, {}),
+  stats:           ()            => api.get("/gyms/stats"),
 };
 
 // ── Member APIs ────────────────────────────────────────────────────
