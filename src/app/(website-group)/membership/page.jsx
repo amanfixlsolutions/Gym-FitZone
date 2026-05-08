@@ -147,8 +147,7 @@ export default function MembershipPage() {
           contact: user.phone || "",
         },
         theme:  { color: "#f59e0b" },
-        // Mobile: use redirect mode as fallback
-        config: { display: { hide: [], preferences: { show_default_blocks: true } } },
+        config: { display: { preferences: { show_default_blocks: true } } },
         handler: async (response) => {
           try {
             // Verify payment
@@ -177,9 +176,10 @@ export default function MembershipPage() {
           }
         },
         modal: {
-          ondismiss:   () => setPaying(null),
-          escape:      false,
+          ondismiss:     () => setPaying(null),
+          escape:        false,
           backdropclose: false,
+          animation:     true,
         },
       };
 
@@ -256,6 +256,20 @@ export default function MembershipPage() {
               <AlertCircle size={15} className="flex-shrink-0" />
               {payError}
               <button onClick={() => setPayError("")} className="ml-auto"><X size={14} /></button>
+            </div>
+          )}
+
+          {/* Mobile payment tip */}
+          {user && !user.plan && (
+            <div className="max-w-md mx-auto mb-4 flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 text-xs px-4 py-3 rounded-xl">
+              <span>💡</span>
+              <span>After payment on mobile, tap <strong>"Refresh Plan"</strong> if your plan doesn't update automatically.</span>
+              <button
+                onClick={async () => { await refreshUser(); }}
+                className="ml-auto flex-shrink-0 text-xs font-bold bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700"
+              >
+                Refresh Plan
+              </button>
             </div>
           )}
 
