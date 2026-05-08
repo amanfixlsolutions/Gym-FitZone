@@ -36,6 +36,7 @@ export default function WebsiteLayout({ children }) {
   const [notifs,      setNotifs]      = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [upcomingClasses, setUpcomingClasses] = useState([]);
+  const [userBookings,    setUserBookings]    = useState([]); // classes user has booked
   const profileRef = useRef(null);
   const notifRef   = useRef(null);
   const zoomRef    = useRef(null);
@@ -84,6 +85,21 @@ export default function WebsiteLayout({ children }) {
     };
     fetchClasses();
   }, []);
+
+  // ── Fetch user's live class bookings (to show Join button) ─────
+  useEffect(() => {
+    if (!user) { setUserBookings([]); return; }
+    const fetchBookings = async () => {
+      try {
+        const res = await liveClassAPI.history({ limit: 20 });
+        const confirmed = (res.data?.bookings || [])
+          .filter(b => b.bookingStatus === "confirmed")
+          .map(b => b.liveClass?._id || b.liveClass);
+        setUserBookings(confirmed.filter(Boolean).map(String));
+      } catch { /* silent */ }
+    };
+    fetchBookings();
+  }, [user]);
 
   const handleMarkRead = async (id) => {
     try {
@@ -212,13 +228,28 @@ export default function WebsiteLayout({ children }) {
                             </div>
                             {/* Book/Join button */}
                             <div className="mt-2 flex gap-2">
-                              {isLive ? (
+                              {isLive && userBookings.includes(String(lc._id)) ? (
+                                // User has booked + class is live → show Join Zoom
+                                <button
+                                  onClick={async () => {
+                                    setZoomOpen(false);
+                                    try {
+                                      const res = await liveClassAPI.join(lc._id);
+                                      if (res.joinUrl) window.open(res.joinUrl, "_blank");
+                                      else window.location.href = "/live-classes";
+                                    } catch { window.location.href = "/live-classes"; }
+                                  }}
+                                  className="flex-1 text-center py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                                >
+                                  <Video size={11} /> Join Zoom →
+                                </button>
+                              ) : isLive ? (
                                 <Link
                                   href="/live-classes"
                                   onClick={() => setZoomOpen(false)}
                                   className="flex-1 text-center py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
                                 >
-                                  <Video size={11} /> Join Now →
+                                  <Video size={11} /> Book & Join →
                                 </Link>
                               ) : (
                                 <Link

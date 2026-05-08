@@ -215,15 +215,19 @@ export default function LiveClassesPage() {
   });
 
   return (
-    <div className="min-h-screen pt-20 pb-12 relative">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10"
-        style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1920&q=80')",
-          backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed",
-        }}>
-        <div className="absolute inset-0 bg-black/70" />
-      </div>
+    <div className="min-h-screen pb-12 relative"
+      style={{
+        backgroundImage: "url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1920&q=80')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/72 pointer-events-none" />
+
+      {/* Content — needs relative + z-10 to sit above overlay */}
+      <div className="relative z-10 pt-24 pb-12">
 
       {/* Success Modal */}
       {success && (
@@ -434,6 +438,7 @@ export default function LiveClassesPage() {
       </div>
 
       <style>{`.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}`}</style>
+      </div>
     </div>
   );
 }
