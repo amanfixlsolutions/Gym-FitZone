@@ -44,7 +44,17 @@ export default function TrainersPage() {
     const fetchTrainers = async () => {
       setLoading(true);
       try {
-        const res = await trainerAPI.getPublic({ status: "Active", limit: 50 });
+        // Get gymId from localStorage (user may not be in AuthContext on public page)
+        let gymId = null;
+        try {
+          const stored = window.sessionStorage?.getItem("fitzone_user") || window.localStorage?.getItem("fitzone_user");
+          if (stored) gymId = JSON.parse(stored)?.gym?._id || JSON.parse(stored)?.gym || null;
+        } catch {}
+
+        const params = { status: "Active", limit: 50 };
+        if (gymId) params.gymId = gymId;
+
+        const res = await trainerAPI.getPublic(params);
         setTrainers(res.data || []);
       } catch {
         setTrainers([]);

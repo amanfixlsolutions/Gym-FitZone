@@ -3,15 +3,15 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { authAPI } from "@/lib/api";
+import { authAPI, gymAPI } from "@/lib/api";
 import {
   Dumbbell, Eye, EyeOff, Lock, Mail, User, Phone,
   ArrowRight, CheckCircle, Loader2, ShieldCheck,
-  RefreshCw, Zap,
+  RefreshCw, Zap, MapPin, Building2, Search, ChevronDown,
 } from "lucide-react";
 
 // ── Steps ──────────────────────────────────────────────────────────
-// 1 = enter email  →  2 = verify OTP  →  3 = fill details  →  done
+// 1 = select gym  →  2 = enter email  →  3 = verify OTP  →  4 = fill details  →  done
 
 const OTP_LENGTH = 6;
 const OTP_RESEND_SECS = 60;
@@ -21,23 +21,39 @@ export default function SignupPage() {
   const { loginUser } = useAuth();
 
   const [step,        setStep]        = useState(1);
+  // Gym selection
+  const [gyms,        setGyms]        = useState([]);
+  const [gymsLoading, setGymsLoading] = useState(true);
+  const [gymSearch,   setGymSearch]   = useState("");
+  const [selectedGym, setSelectedGym] = useState(null); // { _id, name, city, logo }
+  // Email + OTP
   const [email,       setEmail]       = useState("");
   const [otp,         setOtp]         = useState(Array(OTP_LENGTH).fill(""));
   const [verifyToken, setVerifyToken] = useState("");
+  // Details
   const [name,        setName]        = useState("");
   const [phone,       setPhone]       = useState("");
   const [password,    setPassword]    = useState("");
   const [confirmPw,   setConfirmPw]   = useState("");
   const [showPw,      setShowPw]      = useState(false);
   const [showCPw,     setShowCPw]     = useState(false);
+  // UI state
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState("");
   const [resendSecs,  setResendSecs]  = useState(0);
   const [done,        setDone]        = useState(false);
-  const [demoOtp,     setDemoOtp]     = useState(""); // shown when email not configured
+  const [demoOtp,     setDemoOtp]     = useState("");
 
   const otpRefs = useRef([]);
   const timerRef = useRef(null);
+
+  // ── Load gyms on mount ─────────────────────────────────────────
+  useEffect(() => {
+    gymAPI.getPublic()
+      .then(res => setGyms(res.data || []))
+      .catch(() => setGyms([]))
+      .finally(() => setGymsLoading(false));
+  }, []);
 
   // ── Resend countdown ───────────────────────────────────────────
   useEffect(() => {
@@ -51,14 +67,27 @@ export default function SignupPage() {
     return () => clearInterval(timerRef.current);
   }, [resendSecs]);
 
-  // ── Step 1: Send OTP ───────────────────────────────────────────
+  // ── Filtered gyms ──────────────────────────────────────────────
+  const filteredGyms = gyms.filter(g =>
+    g.name.toLowerCase().includes(gymSearch.toLowerCase()) ||
+    g.city?.toLowerCase().includes(gymSearch.toLowerCase())
+  );
+
+  // ── Step 1: Select Gym ─────────────────────────────────────────
+  const handleSelectGym = (gym) => {
+    setSelectedGym(gym);
+    setError("");
+    setStep(2);
+  };
+
+  // ── Step 2: Send OTP ───────────────────────────────────────────
   const handleSendOTP = async (e) => {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true); setError("");
     try {
-      await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
-      setStep(2);
+      await authAPI.sendOTP(email.trim().toLowerCase(), "signup", selectedGym._id);
+      setStep(3);
       setResendSecs(OTP_RESEND_SECS);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (err) {
@@ -91,16 +120,16 @@ export default function SignupPage() {
     }
   };
 
-  // ── Step 2: Verify OTP ─────────────────────────────────────────
+  // ── Step 3: Verify OTP ─────────────────────────────────────────
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     const code = otp.join("");
     if (code.length < OTP_LENGTH) { setError("Enter the complete 6-digit OTP."); return; }
     setLoading(true); setError("");
     try {
-      const res = await authAPI.verifyOTP(email.trim().toLowerCase(), code, "signup");
+      const res = await authAPI.verifyOTP(email.trim().toLowerCase(), code, "signup", selectedGym._id);
       setVerifyToken(res.verifyToken);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       setError(err.message || "Invalid OTP. Please try again.");
     } finally {
@@ -113,7 +142,7 @@ export default function SignupPage() {
     if (resendSecs > 0) return;
     setLoading(true); setError("");
     try {
-      await authAPI.sendOTP(email.trim().toLowerCase(), "signup");
+      await authAPI.sendOTP(email.trim().toLowerCase(), "signup", selectedGym._id);
       setOtp(Array(OTP_LENGTH).fill(""));
       setDemoOtp("");
       setResendSecs(OTP_RESEND_SECS);
@@ -125,7 +154,7 @@ export default function SignupPage() {
     }
   };
 
-  // ── Step 3: Register ───────────────────────────────────────────
+  // ── Step 4: Register ───────────────────────────────────────────
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!name.trim())              { setError("Full name is required."); return; }
@@ -252,7 +281,7 @@ export default function SignupPage() {
 
           {/* Step indicator */}
           <div className="flex items-center gap-2 mb-6">
-            {[1, 2, 3].map(s => (
+            {[1, 2, 3, 4].map(s => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                   step > s  ? "bg-emerald-500 text-white" :
@@ -261,21 +290,113 @@ export default function SignupPage() {
                 }`}>
                   {step > s ? <CheckCircle size={14} /> : s}
                 </div>
-                {s < 3 && <div className={`h-0.5 w-8 rounded-full transition-all ${step > s ? "bg-emerald-400" : "bg-gray-200"}`} />}
+                {s < 4 && <div className={`h-0.5 w-6 rounded-full transition-all ${step > s ? "bg-emerald-400" : "bg-gray-200"}`} />}
               </div>
             ))}
             <span className="ml-2 text-xs text-gray-400 font-medium">
-              {step === 1 ? "Enter Email" : step === 2 ? "Verify OTP" : "Create Account"}
+              {step === 1 ? "Select Gym" : step === 2 ? "Enter Email" : step === 3 ? "Verify OTP" : "Create Account"}
             </span>
           </div>
 
-          {/* ── STEP 1: Email ── */}
+          {/* ── STEP 1: Select Gym ── */}
           {step === 1 && (
             <>
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">Choose your gym</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Select the gym you want to join to get started.
+              </p>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-4">
+                  {error}
+                </div>
+              )}
+
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by gym name or city..."
+                  value={gymSearch}
+                  onChange={e => setGymSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                />
+              </div>
+
+              {/* Gym list */}
+              {gymsLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 size={24} className="animate-spin text-amber-500" />
+                </div>
+              ) : filteredGyms.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  {gyms.length === 0 ? "No gyms available at the moment." : "No gyms match your search."}
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                  {filteredGyms.map(gym => (
+                    <button
+                      key={gym._id}
+                      onClick={() => handleSelectGym(gym)}
+                      className="w-full flex items-center gap-3 p-3.5 border border-gray-200 rounded-xl hover:border-amber-400 hover:bg-amber-50 transition-all text-left group"
+                    >
+                      {/* Logo / Avatar */}
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center flex-shrink-0 overflow-hidden border border-amber-200">
+                        {gym.logo ? (
+                          <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Building2 size={20} className="text-amber-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 text-sm truncate group-hover:text-amber-700">{gym.name}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                          <p className="text-xs text-gray-500 truncate">{gym.city}{gym.address ? `, ${gym.address}` : ""}</p>
+                        </div>
+                      </div>
+                      <ArrowRight size={16} className="text-gray-300 group-hover:text-amber-500 flex-shrink-0 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-center text-sm text-gray-500 mt-6">
+                Already have an account?{" "}
+                <Link href="/login" className="text-amber-600 font-semibold hover:underline">Sign in</Link>
+              </p>
+            </>
+          )}
+
+          {/* ── STEP 2: Email ── */}
+          {step === 2 && (
+            <>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">Create account</h2>
-              <p className="text-sm text-gray-500 mb-7">
+              <p className="text-sm text-gray-500 mb-4">
                 Enter your email to get started. We'll send you a verification code.
               </p>
+
+              {/* Selected gym badge */}
+              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 mb-5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center flex-shrink-0 overflow-hidden border border-amber-200">
+                  {selectedGym?.logo ? (
+                    <img src={selectedGym.logo} alt={selectedGym.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Building2 size={15} className="text-amber-500" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-amber-600 font-semibold uppercase tracking-wide">Selected Gym</p>
+                  <p className="text-sm font-bold text-gray-800 truncate">{selectedGym?.name}</p>
+                </div>
+                <button
+                  onClick={() => { setStep(1); setEmail(""); setError(""); }}
+                  className="text-xs text-amber-600 hover:text-amber-800 font-semibold flex-shrink-0"
+                >
+                  Change
+                </button>
+              </div>
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-5">
@@ -321,8 +442,8 @@ export default function SignupPage() {
             </>
           )}
 
-          {/* ── STEP 2: OTP ── */}
-          {step === 2 && (
+          {/* ── STEP 3: OTP ── */}
+          {step === 3 && (
             <>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">Verify your email</h2>
               <p className="text-sm text-gray-500 mb-1">
@@ -394,7 +515,7 @@ export default function SignupPage() {
               {/* Resend */}
               <div className="flex items-center justify-between mt-5">
                 <button
-                  onClick={() => { setStep(1); setOtp(Array(OTP_LENGTH).fill("")); setError(""); }}
+                  onClick={() => { setStep(2); setOtp(Array(OTP_LENGTH).fill("")); setError(""); }}
                   className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   ← Change email
@@ -411,8 +532,8 @@ export default function SignupPage() {
             </>
           )}
 
-          {/* ── STEP 3: Details ── */}
-          {step === 3 && (
+          {/* ── STEP 4: Details ── */}
+          {step === 4 && (
             <>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">Almost there!</h2>
               <p className="text-sm text-gray-500 mb-7">
@@ -531,14 +652,24 @@ export default function SignupPage() {
                   )}
                 </div>
 
-                {/* Email display (read-only) */}
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                  <Mail size={14} className="text-amber-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-[10px] text-amber-600 font-semibold">Verified Email</p>
-                    <p className="text-xs text-gray-700 font-medium">{email}</p>
+                {/* Gym + Email display (read-only) */}
+                <div className="space-y-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <Building2 size={14} className="text-amber-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-amber-600 font-semibold">Your Gym</p>
+                      <p className="text-xs text-gray-700 font-medium">{selectedGym?.name} — {selectedGym?.city}</p>
+                    </div>
+                    <CheckCircle size={14} className="text-emerald-500 ml-auto flex-shrink-0" />
                   </div>
-                  <CheckCircle size={14} className="text-emerald-500 ml-auto flex-shrink-0" />
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <Mail size={14} className="text-amber-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-amber-600 font-semibold">Verified Email</p>
+                      <p className="text-xs text-gray-700 font-medium">{email}</p>
+                    </div>
+                    <CheckCircle size={14} className="text-emerald-500 ml-auto flex-shrink-0" />
+                  </div>
                 </div>
 
                 <button

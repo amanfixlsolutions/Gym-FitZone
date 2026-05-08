@@ -56,7 +56,17 @@ export default function LiveClassesPage() {
   const fetchClasses = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await liveClassAPI.getUpcoming({ limit: 20 });
+      // Get gymId from stored user — show only this gym's live classes
+      let gymId = null;
+      try {
+        const stored = window.sessionStorage?.getItem("fitzone_user") || window.localStorage?.getItem("fitzone_user");
+        if (stored) gymId = JSON.parse(stored)?.gym?._id || JSON.parse(stored)?.gym || null;
+      } catch {}
+
+      const params = { limit: 20 };
+      if (gymId) params.gymId = gymId;
+
+      const res = await liveClassAPI.getUpcoming(params);
       setClasses(res.data || []);
     } catch {
       setClasses([]);
