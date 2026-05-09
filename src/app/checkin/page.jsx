@@ -25,14 +25,12 @@ function CheckinForm() {
     setError("");
     setResult(null);
 
-    // Clean phone — strip spaces and leading +91
-    const cleanPhone = phone.trim().replace(/\s+/g, "").replace(/^\+91/, "");
-
     try {
       const res = await fetch(`${BASE_URL}/attendance/qr-checkin`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ gymId: gymId.trim(), phone: cleanPhone }),
+        // Send raw phone — backend normalizes to last 10 digits
+        body:    JSON.stringify({ gymId: gymId.trim(), phone: phone.trim() }),
       });
       const data = await res.json();
 
@@ -127,11 +125,12 @@ function CheckinForm() {
                   required
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
+                  placeholder="98765 43210"
                   autoFocus
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors"
                 />
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Enter your 10-digit registered mobile number</p>
             </div>
 
             {error && (
