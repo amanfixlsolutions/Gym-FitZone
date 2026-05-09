@@ -69,7 +69,7 @@ export default function Page() {
   }, [fetchData]);
 
   // ── Generate ONE QR for the whole gym ────────────────────────
-  // Encodes: http://localhost:3000/checkin?gym=<gymId>&name=<gymName>
+  // Encodes: https://<origin>/checkin?gym=<gymId>&name=<gymName>
   // Any member of this gym scans it → enters their phone → backend verifies
   // they are a registered Active member → marks attendance.
   const generateGymQR = async () => {
@@ -77,10 +77,35 @@ export default function Page() {
     try {
       const QRCode = (await import("qrcode")).default;
 
-      const gymId   = user?.gym || user?.gymId || "";
-      const gymName = user?.gymName || "Your Gym";
-      const BASE    = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-      const url     = `${BASE}/checkin?gym=${gymId}&name=${encodeURIComponent(gymName)}`;
+      // Try all possible locations where gymId might be stored
+      let gymId   = user?.gym || user?.gymId || "";
+      let gymName = user?.gymName || "";
+
+      // If gymId is still missing, try to fetch from backend
+      if (!gymId) {
+        try {
+          const { authAPI } = await import("@/lib/api");
+          const meData = await authAPI.getMe();
+          const u = meData?.user;
+          if (u?.gym && typeof u.gym === "object") {
+            gymId   = String(u.gym._id || "");
+            gymName = gymName || String(u.gym.name || "");
+          } else if (u?.gym) {
+            gymId   = String(u.gym);
+            gymName = gymName || u?.gymName || "";
+          }
+        } catch { /* silent */ }
+      }
+
+      if (!gymId) {
+        showError("Gym ID not found. Please log out and log in again.");
+        return;
+      }
+
+      if (!gymName) gymName = "Your Gym";
+
+      const BASE = typeof window !== "undefined" ? window.location.origin : "https://gym-fit-zone.vercel.app";
+      const url  = `${BASE}/checkin?gym=${encodeURIComponent(gymId)}&name=${encodeURIComponent(gymName)}`;
 
       const dataUrl = await QRCode.toDataURL(url, {
         width:                300,

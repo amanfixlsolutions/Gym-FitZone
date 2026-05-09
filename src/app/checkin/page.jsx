@@ -15,18 +15,24 @@ function CheckinForm() {
   const [result,   setResult]   = useState(null); // { success, message, member, alreadyIn }
   const [error,    setError]    = useState("");
 
+  // Show error immediately if gymId is missing in the URL
+  const invalidQR = !gymId || gymId.trim() === "";
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phone.trim()) return;
+    if (!phone.trim() || invalidQR) return;
     setLoading(true);
     setError("");
     setResult(null);
+
+    // Clean phone — strip spaces and leading +91
+    const cleanPhone = phone.trim().replace(/\s+/g, "").replace(/^\+91/, "");
 
     try {
       const res = await fetch(`${BASE_URL}/attendance/qr-checkin`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ gymId, phone: phone.trim() }),
+        body:    JSON.stringify({ gymId: gymId.trim(), phone: cleanPhone }),
       });
       const data = await res.json();
 
@@ -41,6 +47,23 @@ function CheckinForm() {
       setLoading(false);
     }
   };
+
+  // ── Invalid QR screen ──────────────────────────────────────────
+  if (invalidQR) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+          <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
+            <AlertCircle size={40} className="text-red-500" />
+          </div>
+          <h1 className="text-xl font-black text-gray-800 mb-2">Invalid QR Code</h1>
+          <p className="text-sm text-gray-500">
+            This QR code is missing gym information. Please ask your gym to regenerate the attendance QR code.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Success screen ─────────────────────────────────────────────
   if (result?.success) {
