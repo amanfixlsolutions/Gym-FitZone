@@ -136,8 +136,17 @@ export default function Page() {
       certification: form.cert,
       bio:           form.bio,
       salary:        form.salary ? parseFloat(form.salary) : 0,
-      photo:         form.photo || "",
     };
+
+    // Only include photo if it's a valid URL (not empty string)
+    // This prevents accidentally clearing the photo when no new image was selected
+    if (form.photo && form.photo.startsWith("http")) {
+      payload.photo = form.photo;
+    } else if (!editId) {
+      // New trainer with no photo — set empty
+      payload.photo = "";
+    }
+    // If editing and no new photo selected → don't send photo field → keep existing
 
     try {
       if (editId) {
