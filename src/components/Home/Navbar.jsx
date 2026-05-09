@@ -6,12 +6,12 @@ import { usePathname } from 'next/navigation';
 import { Dumbbell, Menu, X } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { label: 'Home',       href: '/user' },
-  { label: 'Classes',    href: '/user/classes' },
-  { label: 'Trainers',   href: '/user/trainers' },
-  { label: 'Membership', href: '/user/membership' },
+  { label: 'Home',       href: '/' },
+  { label: 'Classes',    href: '/classes' },
+  { label: 'Trainers',   href: '/trainers' },
+  { label: 'Membership', href: '/membership' },
   { label: 'Blog',       href: '/blog' },
-  { label: 'Contact',    href: '/user/contact' },
+  { label: 'Contact',    href: '/contact' },
 ];
 
 const Navbar = ({ scrolled, isLoggedIn, userName, onLoginClick, onSignupClick, onLogout }) => {
@@ -29,7 +29,7 @@ const Navbar = ({ scrolled, isLoggedIn, userName, onLoginClick, onSignupClick, o
       <div className="container mx-auto px-4 flex justify-between items-center">
 
         {/* Logo */}
-        <Link href="/user" className="flex items-center gap-2 group cursor-pointer">
+        <Link href="/" className="flex items-center gap-2 group cursor-pointer">
           <div className="relative">
             <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300" />
             <Dumbbell className="text-amber-500 w-8 h-8 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
