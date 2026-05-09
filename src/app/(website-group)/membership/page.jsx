@@ -308,7 +308,7 @@ export default function MembershipPage() {
                         </button>
                       </Link>
                     ) : user.plan === plan.name ? (
-                      // User already has this plan
+                      // User already has this exact plan
                       <div className="w-full py-2.5 rounded-full text-sm text-center bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold">
                         ✓ Current Plan
                         {user.planExpiry && (
@@ -317,21 +317,40 @@ export default function MembershipPage() {
                           </p>
                         )}
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => handleBuyPlan(plan)}
-                        disabled={paying === plan.id}
-                        className={`w-full py-2.5 rounded-full font-semibold text-sm transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.popular ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg hover:shadow-amber-500/30" : "border border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white"}`}
-                      >
-                        {paying === plan.id ? (
-                          <><Loader2 size={14} className="animate-spin" /> Processing...</>
-                        ) : user.plan ? (
-                          <><ArrowRight size={14} /> Upgrade</>
-                        ) : (
-                          <><CreditCard size={14} /> Buy Now</>
-                        )}
-                      </button>
-                    )}
+                    ) : (() => {
+                      // Find current plan price from plans list
+                      const currentPlan = normalizedPlans.find(p => p.name === user.plan);
+                      const currentPrice = currentPlan?.price ?? 0;
+                      const isDowngrade = user.plan && plan.price < currentPrice;
+
+                      if (isDowngrade) {
+                        // Downgrade — disabled button
+                        return (
+                          <div className="w-full py-2.5 rounded-full text-sm text-center bg-gray-100 border border-gray-200 text-gray-400 font-semibold cursor-not-allowed select-none">
+                            🔒 Downgrade Not Allowed
+                            <p className="text-[10px] text-gray-400 mt-0.5 font-normal">
+                              You have a higher plan
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={() => handleBuyPlan(plan)}
+                          disabled={paying === plan.id}
+                          className={`w-full py-2.5 rounded-full font-semibold text-sm transition-all duration-300 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.popular ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg hover:shadow-amber-500/30" : "border border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white"}`}
+                        >
+                          {paying === plan.id ? (
+                            <><Loader2 size={14} className="animate-spin" /> Processing...</>
+                          ) : user.plan ? (
+                            <><ArrowRight size={14} /> Upgrade</>
+                          ) : (
+                            <><CreditCard size={14} /> Buy Now</>
+                          )}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
