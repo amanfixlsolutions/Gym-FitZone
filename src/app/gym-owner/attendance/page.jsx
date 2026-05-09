@@ -69,26 +69,24 @@ export default function Page() {
   }, [fetchData]);
 
   // ── Generate ONE QR for the whole gym ────────────────────────
-  // Encodes: https://<origin>/checkin?gym=<gymId>&name=<gymName>
-  // Any member of this gym scans it → enters their phone → backend verifies
-  // they are a registered Active member → marks attendance.
+  // QR encodes: https://<origin>/checkin?gym=<gymId>&name=<gymName>
+  // Member scans → /checkin page opens → enters phone → attendance marked
   const generateGymQR = async () => {
     setQrGenerating(true);
     try {
       const QRCode = (await import("qrcode")).default;
 
-      // Try all possible locations where gymId might be stored
+      // Resolve gymId — try user context first, then fetch from backend
       let gymId   = user?.gym || user?.gymId || "";
       let gymName = user?.gymName || "";
 
-      // If gymId is still missing, try to fetch from backend
       if (!gymId) {
         try {
           const { authAPI } = await import("@/lib/api");
           const meData = await authAPI.getMe();
           const u = meData?.user;
           if (u?.gym && typeof u.gym === "object") {
-            gymId   = String(u.gym._id || "");
+            gymId   = String(u.gym._id  || "");
             gymName = gymName || String(u.gym.name || "");
           } else if (u?.gym) {
             gymId   = String(u.gym);
@@ -101,11 +99,14 @@ export default function Page() {
         showError("Gym ID not found. Please log out and log in again.");
         return;
       }
-
       if (!gymName) gymName = "Your Gym";
 
-      const BASE = typeof window !== "undefined" ? window.location.origin : "https://gym-fit-zone.vercel.app";
-      const url  = `${BASE}/checkin?gym=${encodeURIComponent(gymId)}&name=${encodeURIComponent(gymName)}`;
+      // Build the checkin URL — gymId is a plain ObjectId string, safe in URL
+      const BASE = typeof window !== "undefined"
+        ? window.location.origin
+        : "https://gym-fit-zone.vercel.app";
+
+      const url = `${BASE}/checkin?gym=${gymId}&name=${encodeURIComponent(gymName)}`;
 
       const dataUrl = await QRCode.toDataURL(url, {
         width:                300,
