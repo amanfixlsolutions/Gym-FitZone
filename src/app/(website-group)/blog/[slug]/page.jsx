@@ -30,13 +30,14 @@ const TwitterIcon = () => (
 );
 
 // ── Category config ────────────────────────────────────────────────
+const CATEGORIES = ["Fitness", "Nutrition", "Wellness", "News", "Tips", "Other"];
 const CAT_COLORS = {
-  Fitness: { bg: "bg-orange-100", text: "text-orange-700", dot: "bg-orange-500" },
-  Nutrition: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" },
-  Wellness: { bg: "bg-pink-100", text: "text-pink-700", dot: "bg-pink-500" },
-  News: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" },
-  Tips: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" },
-  Other: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-500" },
+  Fitness: { bg: "bg-orange-100", text: "text-orange-700", dot: "bg-orange-500", active: "bg-orange-500 text-white" },
+  Nutrition: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500", active: "bg-green-500 text-white" },
+  Wellness: { bg: "bg-pink-100", text: "text-pink-700", dot: "bg-pink-500", active: "bg-pink-500 text-white" },
+  News: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500", active: "bg-blue-500 text-white" },
+  Tips: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500", active: "bg-yellow-500 text-white" },
+  Other: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-500", active: "bg-gray-700 text-white" },
 };
 
 const FALLBACK_IMAGES = {
@@ -54,10 +55,10 @@ const FALLBACK_IMAGES = {
 const formatDate = (d) =>
   d
     ? new Date(d).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
     : "";
 
 const readTime = (content = "") => {
@@ -135,10 +136,12 @@ export default function BlogDetailPage() {
 
   const [blog, setBlog] = useState(null);
   const [related, setRelated] = useState([]);
+  const [allBlogs, setAllBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [imgErr, setImgErr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   useEffect(() => {
     if (!slug) return;
@@ -149,15 +152,20 @@ export default function BlogDetailPage() {
         const res = await blogAPI.getOne(slug);
         if (!res?.data) throw new Error("No data returned");
         setBlog(res.data);
+
+        // Fetch all blogs for category filter
         try {
-          const rel = await blogAPI.getAll({
+          const allRes = await blogAPI.getAll({
             status: "published",
-            category: res.data.category,
-            limit: 4,
+            limit: 50,
           });
-          setRelated(
-            (rel.data || []).filter((b) => b._id !== res.data._id).slice(0, 3)
+          setAllBlogs(allRes.data || []);
+
+          // Filter related posts (same category, excluding current)
+          const sameCategory = (allRes.data || []).filter(
+            (b) => b.category === res.data.category && b._id !== res.data._id
           );
+          setRelated(sameCategory.slice(0, 3));
         } catch {
           /* silent */
         }
@@ -176,6 +184,11 @@ export default function BlogDetailPage() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  // Filter blogs based on selected category
+  const filteredBlogs = selectedCategory === "All"
+    ? allBlogs.filter(b => b._id !== blog?._id)
+    : allBlogs.filter(b => b.category === selectedCategory && b._id !== blog?._id);
 
   if (loading) return <Skeleton />;
 
@@ -220,33 +233,23 @@ export default function BlogDetailPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
 
-        {/* Breadcrumb + Back Button */}
-        <div className="absolute top-4 left-0 right-0 z-10 px-4">
+        {/* Back Button */}
+        <div className="absolute top-4 left-0 right-0 z-20 px-4">
           <div className="max-w-5xl mx-auto">
-            <nav className="flex items-center gap-1 md:gap-2 text-white/70 text-[11px] md:text-xs font-medium mb-2">
-              <Link href="/" className="hover:text-white transition-colors">
-                Home
-              </Link>
-              <ChevronRight size={12} />
-              <Link href="/blog" className="hover:text-white transition-colors">
-                Blog
-              </Link>
-              <ChevronRight size={12} />
-              <span className="text-white/50 truncate max-w-[150px] md:max-w-[300px]">
-                {blog.title}
-              </span>
-            </nav>
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs md:text-sm font-semibold bg-white/10 hover:bg-white/20 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full transition-all"
+              className="flex items-center gap-2 text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full transition-all text-sm font-semibold border border-white/20"
             >
-              <ArrowLeft size={14} /> Back
+              <ArrowLeft size={16} /> Back
             </button>
           </div>
         </div>
 
-        {/* Hero content */}
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 pb-8 md:pb-14">
+        {/* Hero content - Added mt-8 for mobile top margin */}
+       // Hero content section mein yeh change karein - Added proper top padding for mobile
+
+        {/* Hero content - Fixed top spacing for mobile */}
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 pb-8 md:pb-14 pt-8  md:pt-0">
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4">
             <span
               className={`text-[10px] md:text-xs font-black px-2 py-1 md:px-3 md:py-1.5 rounded-full ${cat.bg} ${cat.text}`}
@@ -322,11 +325,10 @@ export default function BlogDetailPage() {
                 </a>
                 <button
                   onClick={copyLink}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    copied
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${copied
                       ? "bg-emerald-500 text-white"
                       : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                  }`}
+                    }`}
                   title="Copy link"
                 >
                   {copied ? <CheckCircle size={14} /> : <Link2 size={14} />}
@@ -458,25 +460,66 @@ export default function BlogDetailPage() {
               </div>
             </div>
 
-            {/* Related posts */}
-            {related.length > 0 && (
-              <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
-                <h3 className="text-xs md:text-sm font-black text-gray-800 mb-3 md:mb-4 uppercase tracking-wider">
-                  Related Articles
-                </h3>
-                <div className="space-y-3 divide-y divide-gray-50">
-                  {related.map((r) => (
-                    <RelatedCard key={r._id} blog={r} />
-                  ))}
-                </div>
-                <Link
-                  href={`/blog?category=${blog.category}`}
-                  className="mt-4 flex items-center justify-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+            {/* Category Tabs - Mobile Responsive */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
+              <h3 className="text-xs md:text-sm font-black text-gray-800 mb-3 md:mb-4 uppercase tracking-wider">
+                Browse Categories
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCategory("All")}
+                  className={`text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full transition-all ${selectedCategory === "All"
+                      ? "bg-amber-500 text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
                 >
-                  More {blog.category} articles <ChevronRight size={12} />
-                </Link>
+                  All
+                </button>
+                {CATEGORIES.map((category) => {
+                  const categoryStyle = CAT_COLORS[category] || CAT_COLORS.Other;
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full transition-all ${selectedCategory === category
+                          ? categoryStyle.active
+                          : `${categoryStyle.bg} ${categoryStyle.text} hover:opacity-80`
+                        }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </div>
+
+            {/* Dynamic Related Posts - Shows filtered blogs based on category tab */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
+              <h3 className="text-xs md:text-sm font-black text-gray-800 mb-3 md:mb-4 uppercase tracking-wider">
+                {selectedCategory === "All" ? "More Articles" : `${selectedCategory} Articles`}
+              </h3>
+              {filteredBlogs.length > 0 ? (
+                <>
+                  <div className="space-y-3 divide-y divide-gray-50">
+                    {filteredBlogs.slice(0, 4).map((item) => (
+                      <RelatedCard key={item._id} blog={item} />
+                    ))}
+                  </div>
+                  {filteredBlogs.length > 4 && (
+                    <Link
+                      href={`/blog?category=${selectedCategory !== "All" ? selectedCategory : ""}`}
+                      className="mt-4 flex items-center justify-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+                    >
+                      View all <ChevronRight size={12} />
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400">No articles found in this category</p>
+                </div>
+              )}
+            </div>
 
             {/* CTA */}
             <div className="relative rounded-xl md:rounded-2xl overflow-hidden">
@@ -504,65 +547,6 @@ export default function BlogDetailPage() {
           </aside>
         </div>
       </div>
-
-      {/* ── MORE FROM BLOG (Related Posts Grid) ── */}
-      {related.length > 0 && (
-        <section className="bg-white border-t border-gray-100 py-10 md:py-16">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-6 md:mb-8">
-              <h2 className="text-xl md:text-2xl font-black text-gray-800">
-                More Articles
-              </h2>
-              <Link
-                href="/blog"
-                className="text-xs md:text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
-              >
-                View all <ChevronRight size={14} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-              {related.map((r) => {
-                const [rImgErr, setRImgErr] = useState(false);
-                const rImg =
-                  rImgErr || !r.image
-                    ? FALLBACK_IMAGES[r.category] || FALLBACK_IMAGES.Fitness
-                    : r.image;
-                const rCat = CAT_COLORS[r.category] || CAT_COLORS.Other;
-                return (
-                  <Link
-                    key={r._id}
-                    href={`/blog/${r.slug || r._id}`}
-                    className="group bg-gray-50 rounded-xl md:rounded-2xl overflow-hidden hover:shadow-lg border border-gray-100 hover:border-amber-200 transition-all duration-300"
-                  >
-                    <div className="h-36 sm:h-44 overflow-hidden">
-                      <img
-                        src={rImg}
-                        alt={r.title}
-                        onError={() => setRImgErr(true)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                    <div className="p-3 md:p-4">
-                      <span
-                        className={`text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full ${rCat.bg} ${rCat.text} inline-block`}
-                      >
-                        {r.category}
-                      </span>
-                      <h3 className="text-sm md:text-base font-bold text-gray-800 mt-2 line-clamp-2 group-hover:text-amber-600 transition-colors">
-                        {r.title}
-                      </h3>
-                      <p className="text-[10px] md:text-xs text-gray-400 mt-2 flex items-center gap-1">
-                        <Calendar size={10} />{" "}
-                        {formatDate(r.publishedAt || r.createdAt)}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
