@@ -222,7 +222,7 @@ export default function BlogDetailPage() {
   const cat = CAT_COLORS[blog.category] || CAT_COLORS.Other;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[64px]">
       {/* ── HERO with background image ── */}
       <section className="relative h-[400px] md:h-[580px] flex items-end overflow-hidden">
         <img

@@ -179,7 +179,7 @@ export default function BlogPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[64px]">
 
       {/* ── HERO ── */}
       <section className="relative h-[420px] md:h-[500px] flex items-center justify-center overflow-hidden">
