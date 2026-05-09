@@ -114,11 +114,12 @@ export default function BlogDetailPage() {
   // ── Fetch blog ─────────────────────────────────────────────────
   useEffect(() => {
     if (!slug) return;
-    const fetch = async () => {
+    const fetchBlog = async () => {
       setLoading(true);
       setError("");
       try {
         const res = await blogAPI.getOne(slug);
+        if (!res?.data) throw new Error("No data returned");
         setBlog(res.data);
         // Fetch related posts (same category)
         try {
@@ -129,13 +130,13 @@ export default function BlogDetailPage() {
           });
           setRelated((rel.data || []).filter(b => b._id !== res.data._id).slice(0, 3));
         } catch { /* silent */ }
-      } catch {
-        setError("Blog post not found.");
+      } catch (err) {
+        setError(err.message || "Blog post not found.");
       } finally {
         setLoading(false);
       }
     };
-    fetch();
+    fetchBlog();
   }, [slug]);
 
   // ── Copy link ──────────────────────────────────────────────────
