@@ -5,10 +5,21 @@ import Link from "next/link";
 import { blogAPI } from "@/lib/api";
 import {
   Calendar, Eye, Clock, ArrowLeft, Tag,
-  Share2, BookOpen, ChevronRight, Flame,
-  Leaf, Heart, Newspaper, Lightbulb, MoreHorizontal,
-  Facebook, Twitter, Link2, CheckCircle,
+  Share2, BookOpen, ChevronRight,
+  Link2, CheckCircle,
 } from "lucide-react";
+
+// ── Brand icons (not in lucide-react) ─────────────────────────────
+const FacebookIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+);
+const TwitterIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
+  </svg>
+);
 
 // ── Category config ────────────────────────────────────────────────
 const CAT_COLORS = {
@@ -258,14 +269,14 @@ export default function BlogDetailPage() {
                 target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
               >
-                <Facebook size={15} />
+                <FacebookIcon />
               </a>
               <a
                 href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(blog.title)}`}
                 target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-full bg-sky-500 text-white flex items-center justify-center hover:bg-sky-600 transition-colors"
               >
-                <Twitter size={15} />
+                <TwitterIcon />
               </a>
               <button onClick={copyLink}
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
