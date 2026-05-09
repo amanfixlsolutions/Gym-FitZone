@@ -97,10 +97,10 @@ export default function ContactPage() {
   const gymCity = info?.city    || "Mumbai";
 
   return (
-    <div className="bg-white">
+    <div className="bg-white pt-[64px]">
 
       {/* ── HERO ── */}
-      <section className="min-h-[60vh] flex flex-col justify-center bg-gradient-to-br from-amber-50 to-orange-50 pt-20 pb-10">
+      <section className="min-h-[60vh] flex flex-col justify-center bg-gradient-to-br from-amber-50 to-orange-50 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-amber-100 px-4 py-2 rounded-full mb-4">
