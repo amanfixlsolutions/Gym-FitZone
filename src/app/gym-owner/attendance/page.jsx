@@ -68,15 +68,23 @@ export default function Page() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // ── Generate ONE QR for the whole gym ────────────────────────
-  // QR encodes: https://<origin>/checkin?gym=<gymId>&name=<gymName>
-  // Member scans → /checkin page opens → enters phone → attendance marked
+  // ── Generate QR for the whole gym ────────────────────────────
+  // This is a DISPLAY QR shown on screen / printed at gym entrance.
+  // When a member scans it with their phone camera, it opens:
+  //   /checkin?qrId=<memberQrId>&name=<gymName>
+  //
+  // BUT — this is the GYM-level QR (not member-specific).
+  // For member-specific QR, gym owner uses the Members page → QR icon.
+  //
+  // This gym QR encodes a URL that tells members to use their
+  // personal QR code. It also supports direct qrId in URL for
+  // scanner devices that can read member QR and redirect here.
   const generateGymQR = async () => {
     setQrGenerating(true);
     try {
       const QRCode = (await import("qrcode")).default;
 
-      // Resolve gymId — try user context first, then fetch from backend
+      // Resolve gymId and gymName
       let gymId   = user?.gym || user?.gymId || "";
       let gymName = user?.gymName || "";
 
@@ -101,12 +109,13 @@ export default function Page() {
       }
       if (!gymName) gymName = "Your Gym";
 
-      // Build the checkin URL — gymId is a plain ObjectId string, safe in URL
       const BASE = typeof window !== "undefined"
         ? window.location.origin
         : "https://gym-fit-zone.vercel.app";
 
-      const url = `${BASE}/checkin?gym=${gymId}&name=${encodeURIComponent(gymName)}`;
+      // Gym-level QR → opens /checkin page with gym context
+      // Member's personal QR (from Members page) encodes their qrId directly
+      const url = `${BASE}/checkin?name=${encodeURIComponent(gymName)}`;
 
       const dataUrl = await QRCode.toDataURL(url, {
         width:                300,
