@@ -5,9 +5,21 @@ import { FaFacebook, FaInstagram, FaTwitter } from "react-icons/fa";
 import { trainerAPI } from "@/lib/api";
 
 const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "https://fitzone-backend-vis3.onrender.com/api").replace(/\/api$/, "");
+
+// Resolve trainer photo URL:
+// - Cloudinary URLs (res.cloudinary.com) → use as-is ✅
+// - Full http/https URLs that are NOT local backend → use as-is ✅
+// - Local backend /uploads/ paths → these don't persist on Render → return null (use fallback)
+// - Relative paths → prepend BACKEND
 const resolvePhoto = (p) => {
   if (!p) return null;
-  if (p.startsWith("http://") || p.startsWith("https://")) return p;
+  // Cloudinary URL — always works
+  if (p.includes("cloudinary.com")) return p;
+  // Other external URLs (not our backend) — use as-is
+  if ((p.startsWith("http://") || p.startsWith("https://")) && !p.includes("onrender.com/uploads")) return p;
+  // Local Render /uploads/ path — files don't persist on free tier → use fallback
+  if (p.includes("onrender.com/uploads") || p.includes("/uploads/")) return null;
+  // Relative path — prepend backend
   return `${BACKEND}${p.startsWith("/") ? "" : "/"}${p}`;
 };
 
@@ -113,21 +125,24 @@ export default function TrainersPage() {
   };
 
   // ── Normalize trainer from backend ────────────────────────────
-  const norm = (t, idx) => ({
-    id:           t._id,
-    name:         t.name,
-    role:         t.specialty || "Fitness Trainer",
-    image:        resolvePhoto(t.photo) || fallbackImages[idx % fallbackImages.length],
-    experience:   t.experience || "3+ years",
-    achievements: t.certification || "Certified Trainer",
-    rating:       t.rating || 4.8,
-    specialties:  t.specialties?.length ? t.specialties : [t.specialty || "Fitness"],
-    certification:t.certification || "Certified",
-    clients:      t.totalClients ? `${t.totalClients}+` : "100+",
-    bio:          t.bio || `${t.name} is a certified fitness professional dedicated to helping clients achieve their goals.`,
-    available:    t.status === "Active" && t.available !== false,
-    social:       t.social || {},
-  });
+  const norm = (t, idx) => {
+    const photo = resolvePhoto(t.photo);
+    return {
+      id:           t._id,
+      name:         t.name,
+      role:         t.specialty || "Fitness Trainer",
+      image:        photo || fallbackImages[idx % fallbackImages.length],
+      experience:   t.experience || "3+ years",
+      achievements: t.certification || "Certified Trainer",
+      rating:       t.rating || 4.8,
+      specialties:  t.specialties?.length ? t.specialties : [t.specialty || "Fitness"],
+      certification:t.certification || "Certified",
+      clients:      t.totalClients ? `${t.totalClients}+` : "100+",
+      bio:          t.bio || `${t.name} is a certified fitness professional dedicated to helping clients achieve their goals.`,
+      available:    t.status === "Active" && t.available !== false,
+      social:       t.social || {},
+    };
+  };
 
   const normTrainers = trainers.map(norm);
   const normPaged    = paged.map(norm);
