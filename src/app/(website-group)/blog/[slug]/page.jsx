@@ -1,12 +1,20 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { blogAPI } from "@/lib/api";
 import {
-  Calendar, Eye, Clock, ArrowLeft, Tag,
-  Share2, BookOpen, ChevronRight,
-  Link2, CheckCircle,
+  Calendar,
+  Eye,
+  Clock,
+  ArrowLeft,
+  Tag,
+  Share2,
+  BookOpen,
+  ChevronRight,
+  Link2,
+  CheckCircle,
 } from "lucide-react";
 
 // ── Brand icons (not in lucide-react) ─────────────────────────────
@@ -23,25 +31,34 @@ const TwitterIcon = () => (
 
 // ── Category config ────────────────────────────────────────────────
 const CAT_COLORS = {
-  Fitness:   { bg: "bg-orange-100",  text: "text-orange-700",  dot: "bg-orange-500"  },
-  Nutrition: { bg: "bg-green-100",   text: "text-green-700",   dot: "bg-green-500"   },
-  Wellness:  { bg: "bg-pink-100",    text: "text-pink-700",    dot: "bg-pink-500"    },
-  News:      { bg: "bg-blue-100",    text: "text-blue-700",    dot: "bg-blue-500"    },
-  Tips:      { bg: "bg-yellow-100",  text: "text-yellow-700",  dot: "bg-yellow-500"  },
-  Other:     { bg: "bg-gray-100",    text: "text-gray-700",    dot: "bg-gray-500"    },
+  Fitness: { bg: "bg-orange-100", text: "text-orange-700", dot: "bg-orange-500" },
+  Nutrition: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" },
+  Wellness: { bg: "bg-pink-100", text: "text-pink-700", dot: "bg-pink-500" },
+  News: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" },
+  Tips: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" },
+  Other: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-500" },
 };
 
 const FALLBACK_IMAGES = {
-  Fitness:   "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=80",
-  Nutrition: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1600&q=80",
-  Wellness:  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1600&q=80",
-  News:      "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1600&q=80",
-  Tips:      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&q=80",
-  Other:     "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=80",
+  Fitness:
+    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=80",
+  Nutrition:
+    "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1600&q=80",
+  Wellness:
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1600&q=80",
+  News: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1600&q=80",
+  Tips: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&q=80",
+  Other: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=80",
 };
 
 const formatDate = (d) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "";
+  d
+    ? new Date(d).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
 
 const readTime = (content = "") => {
   const words = content.replace(/<[^>]+>/g, "").split(/\s+/).length;
@@ -52,16 +69,19 @@ const readTime = (content = "") => {
 function Skeleton() {
   return (
     <div className="animate-pulse">
-      {/* Hero skeleton */}
-      <div className="h-[500px] bg-gray-300" />
-      <div className="max-w-4xl mx-auto px-4 py-12 space-y-4">
+      <div className="h-[300px] md:h-[500px] bg-gray-300" />
+      <div className="max-w-4xl mx-auto px-4 py-6 md:py-12 space-y-4">
         <div className="h-4 bg-gray-200 rounded w-1/4" />
-        <div className="h-8 bg-gray-200 rounded w-3/4" />
-        <div className="h-8 bg-gray-200 rounded w-1/2" />
+        <div className="h-6 md:h-8 bg-gray-200 rounded w-3/4" />
+        <div className="h-6 md:h-8 bg-gray-200 rounded w-1/2" />
         <div className="h-4 bg-gray-200 rounded w-1/3" />
         <div className="space-y-3 pt-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-4 bg-gray-200 rounded" style={{ width: `${70 + Math.random() * 30}%` }} />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-4 bg-gray-200 rounded"
+              style={{ width: `${70 + Math.random() * 30}%` }}
+            />
           ))}
         </div>
       </div>
@@ -69,29 +89,38 @@ function Skeleton() {
   );
 }
 
-// ── Related Card ───────────────────────────────────────────────────
+// ── Related Card (for sidebar) ───────────────────────────────────
 function RelatedCard({ blog }) {
   const [imgErr, setImgErr] = useState(false);
-  const img = imgErr
-    ? FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness
-    : blog.image || FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness;
+  const img =
+    imgErr || !blog.image
+      ? FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness
+      : blog.image;
   const cat = CAT_COLORS[blog.category] || CAT_COLORS.Other;
 
   return (
-    <Link href={`/blog/${blog.slug || blog._id}`}
-      className="group flex gap-4 p-3 rounded-2xl hover:bg-amber-50 transition-colors">
-      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-        <img src={img} alt={blog.title} onError={() => setImgErr(true)}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+    <Link
+      href={`/blog/${blog.slug || blog._id}`}
+      className="group flex gap-3 p-2 rounded-xl hover:bg-amber-50 transition-colors"
+    >
+      <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+        <img
+          src={img}
+          alt={blog.title}
+          onError={() => setImgErr(true)}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.bg} ${cat.text}`}>
+        <span
+          className={`text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.bg} ${cat.text} inline-block`}
+        >
           {blog.category}
         </span>
-        <p className="text-sm font-semibold text-gray-800 mt-1 line-clamp-2 group-hover:text-amber-600 transition-colors leading-snug">
+        <p className="text-xs md:text-sm font-semibold text-gray-800 mt-1 line-clamp-2 group-hover:text-amber-600 transition-colors leading-snug">
           {blog.title}
         </p>
-        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+        <p className="text-[9px] md:text-[10px] text-gray-400 mt-1 flex items-center gap-1">
           <Calendar size={10} /> {formatDate(blog.publishedAt || blog.createdAt)}
         </p>
       </div>
@@ -101,17 +130,16 @@ function RelatedCard({ blog }) {
 
 // ── Main Page ──────────────────────────────────────────────────────
 export default function BlogDetailPage() {
-  const { slug }  = useParams();
-  const router    = useRouter();
+  const { slug } = useParams();
+  const router = useRouter();
 
-  const [blog,    setBlog]    = useState(null);
+  const [blog, setBlog] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-  const [imgErr,  setImgErr]  = useState(false);
-  const [copied,  setCopied]  = useState(false);
+  const [error, setError] = useState("");
+  const [imgErr, setImgErr] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  // ── Fetch blog ─────────────────────────────────────────────────
   useEffect(() => {
     if (!slug) return;
     const fetchBlog = async () => {
@@ -121,15 +149,18 @@ export default function BlogDetailPage() {
         const res = await blogAPI.getOne(slug);
         if (!res?.data) throw new Error("No data returned");
         setBlog(res.data);
-        // Fetch related posts (same category)
         try {
           const rel = await blogAPI.getAll({
-            status:   "published",
+            status: "published",
             category: res.data.category,
-            limit:    4,
+            limit: 4,
           });
-          setRelated((rel.data || []).filter(b => b._id !== res.data._id).slice(0, 3));
-        } catch { /* silent */ }
+          setRelated(
+            (rel.data || []).filter((b) => b._id !== res.data._id).slice(0, 3)
+          );
+        } catch {
+          /* silent */
+        }
       } catch (err) {
         setError(err.message || "Blog post not found.");
       } finally {
@@ -139,7 +170,6 @@ export default function BlogDetailPage() {
     fetchBlog();
   }, [slug]);
 
-  // ── Copy link ──────────────────────────────────────────────────
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
       setCopied(true);
@@ -151,13 +181,19 @@ export default function BlogDetailPage() {
 
   if (error || !blog) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center px-4">
-          <BookOpen size={64} className="text-gray-200 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-gray-700 mb-2">Post Not Found</h1>
-          <p className="text-gray-400 mb-6">This article doesn't exist or has been removed.</p>
-          <Link href="/blog"
-            className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-6 py-3 rounded-2xl hover:bg-amber-600 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center">
+          <BookOpen size={48} className="text-gray-200 mx-auto mb-4" />
+          <h1 className="text-xl md:text-2xl font-black text-gray-700 mb-2">
+            Post Not Found
+          </h1>
+          <p className="text-gray-400 mb-6 text-sm md:text-base">
+            This article doesn't exist or has been removed.
+          </p>
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 md:px-6 md:py-3 rounded-xl hover:bg-amber-600 transition-colors text-sm md:text-base"
+          >
             <ArrowLeft size={16} /> Back to Blog
           </Link>
         </div>
@@ -165,88 +201,88 @@ export default function BlogDetailPage() {
     );
   }
 
-  const heroImg = imgErr
-    ? FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness
-    : blog.image || FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness;
+  const heroImg =
+    imgErr || !blog.image
+      ? FALLBACK_IMAGES[blog.category] || FALLBACK_IMAGES.Fitness
+      : blog.image;
 
   const cat = CAT_COLORS[blog.category] || CAT_COLORS.Other;
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* ── HERO with background image ── */}
-      <section className="relative h-[500px] md:h-[580px] flex items-end overflow-hidden">
-        {/* Background image */}
+      <section className="relative h-[400px] md:h-[580px] flex items-end overflow-hidden">
         <img
           src={heroImg}
           alt={blog.title}
           onError={() => setImgErr(true)}
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Dark gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
 
-        {/* Breadcrumb — top left */}
-        <div className="absolute top-6 left-0 right-0 z-10">
-          <div className="max-w-5xl mx-auto px-4">
-            <nav className="flex items-center gap-2 text-white/70 text-xs font-medium">
-              <Link href="/" className="hover:text-white transition-colors">Home</Link>
+        {/* Breadcrumb + Back Button */}
+        <div className="absolute top-4 left-0 right-0 z-10 px-4">
+          <div className="max-w-5xl mx-auto">
+            <nav className="flex items-center gap-1 md:gap-2 text-white/70 text-[11px] md:text-xs font-medium mb-2">
+              <Link href="/" className="hover:text-white transition-colors">
+                Home
+              </Link>
               <ChevronRight size={12} />
-              <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
+              <Link href="/blog" className="hover:text-white transition-colors">
+                Blog
+              </Link>
               <ChevronRight size={12} />
-              <span className="text-white/50 truncate max-w-[200px]">{blog.title}</span>
+              <span className="text-white/50 truncate max-w-[150px] md:max-w-[300px]">
+                {blog.title}
+              </span>
             </nav>
-          </div>
-        </div>
-
-        {/* Back button — top left below breadcrumb */}
-        <div className="absolute top-14 left-0 right-0 z-10">
-          <div className="max-w-5xl mx-auto px-4">
-            <button onClick={() => router.back()}
-              className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-semibold bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 rounded-full transition-all">
-              <ArrowLeft size={15} /> Back
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs md:text-sm font-semibold bg-white/10 hover:bg-white/20 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full transition-all"
+            >
+              <ArrowLeft size={14} /> Back
             </button>
           </div>
         </div>
 
-        {/* Hero content — bottom */}
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 pb-10 md:pb-14">
-          {/* Category + read time */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`text-xs font-black px-3 py-1.5 rounded-full ${cat.bg} ${cat.text}`}>
+        {/* Hero content */}
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 pb-8 md:pb-14">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <span
+              className={`text-[10px] md:text-xs font-black px-2 py-1 md:px-3 md:py-1.5 rounded-full ${cat.bg} ${cat.text}`}
+            >
               {blog.category}
             </span>
-            <span className="flex items-center gap-1 text-white/70 text-xs font-medium">
+            <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-xs font-medium">
               <Clock size={12} /> {readTime(blog.content)} min read
             </span>
-            <span className="flex items-center gap-1 text-white/70 text-xs font-medium">
+            <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-xs font-medium">
               <Eye size={12} /> {blog.views || 0} views
             </span>
           </div>
 
-          {/* Title */}
-          <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-4 max-w-3xl">
+          <h1 className="text-2xl md:text-5xl font-black text-white leading-tight mb-3 md:mb-4 max-w-3xl">
             {blog.title}
           </h1>
 
-          {/* Excerpt */}
           {blog.excerpt && (
-            <p className="text-white/80 text-base md:text-lg max-w-2xl mb-5 leading-relaxed">
+            <p className="text-white/80 text-sm md:text-lg max-w-2xl mb-4 md:mb-5 leading-relaxed">
               {blog.excerpt}
             </p>
           )}
 
-          {/* Meta */}
-          <div className="flex items-center gap-4 text-white/60 text-sm">
+          <div className="flex items-center gap-3 md:gap-4 text-white/60 text-xs md:text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-black">
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] md:text-xs font-black">
                 {(blog.authorName || "A").charAt(0).toUpperCase()}
               </div>
-              <span className="font-semibold text-white/90">{blog.authorName || "FitZone Team"}</span>
+              <span className="font-semibold text-white/90 text-xs md:text-sm">
+                {blog.authorName || "FitZone Team"}
+              </span>
             </div>
             <span className="text-white/40">·</span>
             <span className="flex items-center gap-1">
-              <Calendar size={13} />
+              <Calendar size={12} />
               {formatDate(blog.publishedAt || blog.createdAt)}
             </span>
           </div>
@@ -254,71 +290,86 @@ export default function BlogDetailPage() {
       </section>
 
       {/* ── CONTENT AREA ── */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="flex flex-col lg:flex-row gap-10">
-
+      <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+        <div className="flex flex-col lg:flex-row gap-8 md:gap-10">
           {/* ── Main Article ── */}
           <article className="flex-1 min-w-0">
-
             {/* Share bar */}
-            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-200">
+            <div className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-gray-200">
               <span className="text-sm font-bold text-gray-600 flex items-center gap-1.5">
                 <Share2 size={15} /> Share:
               </span>
-              <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
-                target="_blank" rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
-              >
-                <FacebookIcon />
-              </a>
-              <a
-                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(blog.title)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-sky-500 text-white flex items-center justify-center hover:bg-sky-600 transition-colors"
-              >
-                <TwitterIcon />
-              </a>
-              <button onClick={copyLink}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                  copied ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                }`}
-                title="Copy link"
-              >
-                {copied ? <CheckCircle size={15} /> : <Link2 size={15} />}
-              </button>
-              {copied && <span className="text-xs text-emerald-600 font-semibold">Copied!</span>}
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : ""
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
+                >
+                  <FacebookIcon />
+                </a>
+                <a
+                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(
+                    typeof window !== "undefined" ? window.location.href : ""
+                  )}&text=${encodeURIComponent(blog.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center hover:bg-sky-600 transition-colors"
+                >
+                  <TwitterIcon />
+                </a>
+                <button
+                  onClick={copyLink}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                    copied
+                      ? "bg-emerald-500 text-white"
+                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  }`}
+                  title="Copy link"
+                >
+                  {copied ? <CheckCircle size={14} /> : <Link2 size={14} />}
+                </button>
+                {copied && (
+                  <span className="text-xs text-emerald-600 font-semibold">
+                    Copied!
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Blog content */}
             <div
-              className="prose prose-lg max-w-none
+              className="prose prose-sm md:prose-lg max-w-none
                 prose-headings:font-black prose-headings:text-gray-800
-                prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
-                prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
-                prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-5
+                prose-h2:text-xl md:prose-h2:text-2xl prose-h2:mt-8 md:prose-h2:mt-10 prose-h2:mb-3 md:prose-h2:mb-4
+                prose-h3:text-lg md:prose-h3:text-xl prose-h3:mt-6 md:prose-h3:mt-8 prose-h3:mb-2 md:prose-h3:mb-3
+                prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-4 md:prose-p:mb-5
                 prose-strong:text-gray-800 prose-strong:font-bold
                 prose-ul:text-gray-600 prose-ol:text-gray-600
-                prose-li:mb-1.5
+                prose-li:mb-1
                 prose-a:text-amber-600 prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
                 prose-blockquote:border-l-4 prose-blockquote:border-amber-500
-                prose-blockquote:bg-amber-50 prose-blockquote:px-6 prose-blockquote:py-4
+                prose-blockquote:bg-amber-50 prose-blockquote:px-4 md:prose-blockquote:px-6 prose-blockquote:py-3 md:prose-blockquote:py-4
                 prose-blockquote:rounded-r-xl prose-blockquote:not-italic
                 prose-blockquote:text-gray-700 prose-blockquote:font-medium
-                prose-img:rounded-2xl prose-img:shadow-lg
-                prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
+                prose-img:rounded-xl md:prose-img:rounded-2xl prose-img:shadow-lg
+                prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs md:prose-code:text-sm
               "
               dangerouslySetInnerHTML={{ __html: blog.content }}
             />
 
             {/* Tags */}
             {blog.tags?.length > 0 && (
-              <div className="mt-10 pt-8 border-t border-gray-200">
+              <div className="mt-8 md:mt-10 pt-6 md:pt-8 border-t border-gray-200">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Tag size={15} className="text-gray-400" />
-                  {blog.tags.map(tag => (
-                    <span key={tag}
-                      className="text-xs font-semibold px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-amber-100 hover:text-amber-700 transition-colors cursor-default">
+                  <Tag size={14} className="text-gray-400" />
+                  {blog.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] md:text-xs font-semibold px-2 py-1 md:px-3 md:py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-amber-100 hover:text-amber-700 transition-colors cursor-default"
+                    >
                       #{tag}
                     </span>
                   ))}
@@ -327,26 +378,36 @@ export default function BlogDetailPage() {
             )}
 
             {/* Author card */}
-            <div className="mt-10 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-100">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-xl font-black flex-shrink-0 shadow-md">
+            <div className="mt-8 md:mt-10 p-4 md:p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl md:rounded-2xl border border-amber-100">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-base md:text-xl font-black flex-shrink-0 shadow-md">
                   {(blog.authorName || "F").charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">Written by</p>
-                  <p className="text-base font-black text-gray-800">{blog.authorName || "FitZone Team"}</p>
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    Expert fitness writer at FitZone — helping you achieve your health goals.
+                  <p className="text-[10px] md:text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">
+                    Written by
+                  </p>
+                  <p className="text-sm md:text-base font-black text-gray-800">
+                    {blog.authorName || "FitZone Team"}
+                  </p>
+                  <p className="text-xs md:text-sm text-gray-500 mt-0.5">
+                    Expert fitness writer at FitZone — helping you achieve your
+                    health goals.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Back to blog */}
-            <div className="mt-8">
-              <Link href="/blog"
-                className="inline-flex items-center gap-2 text-amber-600 font-bold hover:text-amber-700 transition-colors group">
-                <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            <div className="mt-6 md:mt-8">
+              <Link
+                href="/blog"
+                className="inline-flex items-center gap-2 text-amber-600 font-bold hover:text-amber-700 transition-colors group text-sm md:text-base"
+              >
+                <ArrowLeft
+                  size={16}
+                  className="group-hover:-translate-x-1 transition-transform"
+                />
                 Back to all articles
               </Link>
             </div>
@@ -354,26 +415,43 @@ export default function BlogDetailPage() {
 
           {/* ── Sidebar ── */}
           <aside className="lg:w-80 flex-shrink-0 space-y-6">
-
             {/* Article info card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-sm font-black text-gray-800 mb-4 uppercase tracking-wider">Article Info</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><Calendar size={14} /> Published</span>
-                  <span className="font-semibold text-gray-700">{formatDate(blog.publishedAt || blog.createdAt)}</span>
+            <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
+              <h3 className="text-xs md:text-sm font-black text-gray-800 mb-3 md:mb-4 uppercase tracking-wider">
+                Article Info
+              </h3>
+              <div className="space-y-2 md:space-y-3">
+                <div className="flex items-center justify-between text-xs md:text-sm">
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Calendar size={14} /> Published
+                  </span>
+                  <span className="font-semibold text-gray-700">
+                    {formatDate(blog.publishedAt || blog.createdAt)}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><Clock size={14} /> Read Time</span>
-                  <span className="font-semibold text-gray-700">{readTime(blog.content)} min</span>
+                <div className="flex items-center justify-between text-xs md:text-sm">
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Clock size={14} /> Read Time
+                  </span>
+                  <span className="font-semibold text-gray-700">
+                    {readTime(blog.content)} min
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><Eye size={14} /> Views</span>
-                  <span className="font-semibold text-gray-700">{blog.views || 0}</span>
+                <div className="flex items-center justify-between text-xs md:text-sm">
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Eye size={14} /> Views
+                  </span>
+                  <span className="font-semibold text-gray-700">
+                    {blog.views || 0}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 flex items-center gap-2"><BookOpen size={14} /> Category</span>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cat.bg} ${cat.text}`}>
+                <div className="flex items-center justify-between text-xs md:text-sm">
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <BookOpen size={14} /> Category
+                  </span>
+                  <span
+                    className={`text-[10px] md:text-xs font-bold px-2 py-1 rounded-full ${cat.bg} ${cat.text}`}
+                  >
                     {blog.category}
                   </span>
                 </div>
@@ -382,31 +460,43 @@ export default function BlogDetailPage() {
 
             {/* Related posts */}
             {related.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h3 className="text-sm font-black text-gray-800 mb-4 uppercase tracking-wider">Related Articles</h3>
-                <div className="space-y-1 divide-y divide-gray-50">
-                  {related.map(r => <RelatedCard key={r._id} blog={r} />)}
+              <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5">
+                <h3 className="text-xs md:text-sm font-black text-gray-800 mb-3 md:mb-4 uppercase tracking-wider">
+                  Related Articles
+                </h3>
+                <div className="space-y-3 divide-y divide-gray-50">
+                  {related.map((r) => (
+                    <RelatedCard key={r._id} blog={r} />
+                  ))}
                 </div>
-                <Link href={`/blog?category=${blog.category}`}
-                  className="mt-4 flex items-center justify-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors">
+                <Link
+                  href={`/blog?category=${blog.category}`}
+                  className="mt-4 flex items-center justify-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+                >
                   More {blog.category} articles <ChevronRight size={12} />
                 </Link>
               </div>
             )}
 
             {/* CTA */}
-            <div className="relative rounded-2xl overflow-hidden">
+            <div className="relative rounded-xl md:rounded-2xl overflow-hidden">
               <img
                 src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80"
                 alt="Join FitZone"
                 className="absolute inset-0 w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-amber-600/80 to-orange-700/90" />
-              <div className="relative z-10 p-6 text-center">
-                <p className="text-white font-black text-lg mb-1">Ready to Start?</p>
-                <p className="text-white/80 text-xs mb-4">Join thousands of members achieving their fitness goals.</p>
-                <Link href="/membership"
-                  className="inline-block bg-white text-amber-600 font-black text-sm px-5 py-2.5 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300">
+              <div className="relative z-10 p-5 md:p-6 text-center">
+                <p className="text-white font-black text-base md:text-lg mb-1">
+                  Ready to Start?
+                </p>
+                <p className="text-white/80 text-[11px] md:text-xs mb-3 md:mb-4">
+                  Join thousands of members achieving their fitness goals.
+                </p>
+                <Link
+                  href="/membership"
+                  className="inline-block bg-white text-amber-600 font-black text-xs md:text-sm px-4 py-2 md:px-5 md:py-2.5 rounded-lg md:rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300"
+                >
                   View Plans →
                 </Link>
               </div>
@@ -415,39 +505,55 @@ export default function BlogDetailPage() {
         </div>
       </div>
 
-      {/* ── MORE FROM BLOG ── */}
+      {/* ── MORE FROM BLOG (Related Posts Grid) ── */}
       {related.length > 0 && (
-        <section className="bg-white border-t border-gray-100 py-16">
+        <section className="bg-white border-t border-gray-100 py-10 md:py-16">
           <div className="max-w-5xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black text-gray-800">More Articles</h2>
-              <Link href="/blog" className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+            <div className="flex items-center justify-between mb-6 md:mb-8">
+              <h2 className="text-xl md:text-2xl font-black text-gray-800">
+                More Articles
+              </h2>
+              <Link
+                href="/blog"
+                className="text-xs md:text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
+              >
                 View all <ChevronRight size={14} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {related.map(r => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+              {related.map((r) => {
                 const [rImgErr, setRImgErr] = useState(false);
-                const rImg = rImgErr
-                  ? FALLBACK_IMAGES[r.category] || FALLBACK_IMAGES.Fitness
-                  : r.image || FALLBACK_IMAGES[r.category] || FALLBACK_IMAGES.Fitness;
+                const rImg =
+                  rImgErr || !r.image
+                    ? FALLBACK_IMAGES[r.category] || FALLBACK_IMAGES.Fitness
+                    : r.image;
                 const rCat = CAT_COLORS[r.category] || CAT_COLORS.Other;
                 return (
-                  <Link key={r._id} href={`/blog/${r.slug || r._id}`}
-                    className="group bg-gray-50 rounded-2xl overflow-hidden hover:shadow-lg border border-gray-100 hover:border-amber-200 transition-all duration-300">
-                    <div className="h-44 overflow-hidden">
-                      <img src={rImg} alt={r.title} onError={() => setRImgErr(true)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Link
+                    key={r._id}
+                    href={`/blog/${r.slug || r._id}`}
+                    className="group bg-gray-50 rounded-xl md:rounded-2xl overflow-hidden hover:shadow-lg border border-gray-100 hover:border-amber-200 transition-all duration-300"
+                  >
+                    <div className="h-36 sm:h-44 overflow-hidden">
+                      <img
+                        src={rImg}
+                        alt={r.title}
+                        onError={() => setRImgErr(true)}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                     </div>
-                    <div className="p-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rCat.bg} ${rCat.text}`}>
+                    <div className="p-3 md:p-4">
+                      <span
+                        className={`text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full ${rCat.bg} ${rCat.text} inline-block`}
+                      >
                         {r.category}
                       </span>
-                      <h3 className="text-sm font-bold text-gray-800 mt-2 line-clamp-2 group-hover:text-amber-600 transition-colors">
+                      <h3 className="text-sm md:text-base font-bold text-gray-800 mt-2 line-clamp-2 group-hover:text-amber-600 transition-colors">
                         {r.title}
                       </h3>
-                      <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
-                        <Calendar size={10} /> {formatDate(r.publishedAt || r.createdAt)}
+                      <p className="text-[10px] md:text-xs text-gray-400 mt-2 flex items-center gap-1">
+                        <Calendar size={10} />{" "}
+                        {formatDate(r.publishedAt || r.createdAt)}
                       </p>
                     </div>
                   </Link>
