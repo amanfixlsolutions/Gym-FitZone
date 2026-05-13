@@ -8,6 +8,9 @@ import StatCard from "@/components/StatCard";
 import RevenueChart from "@/components/RevenueChart";
 import AttendanceChart from "@/components/AttendanceChart";
 import RetentionGauge from "@/components/RetentionGauge";
+import TrialCountdownBanner from "@/components/TrialCountdownBanner";
+import UsageMeters from "@/components/UsageMeters";
+import SubscriptionWidget from "@/components/SubscriptionWidget";
 import { Users, CreditCard, CalendarCheck, TrendingUp, QrCode, Clock, CheckCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
@@ -18,7 +21,10 @@ export default function GymOwnerDashboard() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await analyticsAPI.gymOwnerDashboard();
+      // Load all data in parallel for faster dashboard load (< 3s target)
+      const [res] = await Promise.all([
+        analyticsAPI.gymOwnerDashboard(),
+      ]);
       setData(res.data);
     } catch {
       // Keep showing skeleton/fallback
@@ -70,9 +76,18 @@ export default function GymOwnerDashboard() {
   const todayClasses = data?.todayClassList || [];
   const recentCheckins = data?.recentCheckins || [];
 
+  // SaaS usage data from analytics response
+  const stats_data = data?.stats || {};
+
   return (
     <RoleDashboardLayout title="Gym Dashboard" navItems={GYM_OWNER_NAV} role="gym-owner">
       <div className="space-y-5">
+
+        {/* Trial countdown banner — shown at the very top when on trial */}
+        <TrialCountdownBanner
+          trialEndsAt={stats_data.trialEndsAt}
+          subscriptionStatus={stats_data.subscriptionStatus}
+        />
 
         {/* Welcome banner */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">
@@ -122,6 +137,21 @@ export default function GymOwnerDashboard() {
               active={data?.stats?.activeMembers || 0}
               total={data?.stats?.totalMembers || 0}
             />
+          </div>
+        </div>
+
+        {/* Usage Meters + Subscription Widget */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
+            <UsageMeters
+              totalMembers={stats_data.totalMembers || 0}
+              maxMembers={stats_data.maxMembers || 100}
+              totalTrainers={stats_data.totalTrainers || 0}
+              maxTrainers={stats_data.maxTrainers || 10}
+            />
+          </div>
+          <div>
+            <SubscriptionWidget />
           </div>
         </div>
 
