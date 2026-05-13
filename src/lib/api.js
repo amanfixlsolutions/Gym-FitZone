@@ -400,3 +400,18 @@ export const liveClassAPI = {
   spending:    (params = {}) => api.get(`/live-classes/member/spending?${new URLSearchParams(params)}`),
   regenerateZoom: (id) => api.post(`/live-classes/${id}/regenerate-zoom`, {}),
 };
+
+// ── Super Admin APIs ───────────────────────────────────────────────
+export const superAdminAPI = {
+  getMetrics:         ()            => api.get("/super-admin/metrics"),
+  getTenants:         (params = {}) => api.get(`/super-admin/tenants?${new URLSearchParams(params)}`),
+  getTenantDetail:    (id)          => api.get(`/super-admin/tenants/${id}`),
+  suspendTenant:      (id)          => api.post(`/super-admin/tenants/${id}/suspend`, {}),
+  reactivateTenant:   (id)          => api.post(`/super-admin/tenants/${id}/reactivate`, {}),
+  extendTrial:        (id, days)    => api.post(`/super-admin/tenants/${id}/extend-trial`, { days }),
+  updateFeatureFlags: (id, flags)   => api.put(`/super-admin/tenants/${id}/feature-flags`, { featureFlags: flags }),
+  broadcast:          (data)        => api.post("/super-admin/broadcast", data),
+  getRevenue:         ()            => api.get("/super-admin/revenue"),
+  getActivity:        (params = {}) => api.get(`/super-admin/activity?${new URLSearchParams(params)}`),
+  getTenantHealth:    ()            => api.get("/super-admin/health"),
+};
