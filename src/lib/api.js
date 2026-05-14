@@ -352,6 +352,15 @@ export const inventoryAPI = {
   updateStock: (id, stock)   => api.patch(`/inventory/${id}/stock`, { stock }),
   delete:      (id)          => api.delete(`/inventory/${id}`),
 };
+
+// ── Billing APIs ───────────────────────────────────────────────────
+export const billingAPI = {
+  getStatus:   ()     => api.get("/billing/status"),
+  createOrder: (data) => api.post("/billing/create-order", data),
+  verify:      (data) => api.post("/billing/verify", data),
+  cancel:      (data) => api.post("/billing/cancel", data),
+  upgrade:     (data) => api.post("/billing/upgrade", data),
+};
 export const uploadAPI = {
   upload: (file, folder = "fitzone") => {
     const form = new FormData();
