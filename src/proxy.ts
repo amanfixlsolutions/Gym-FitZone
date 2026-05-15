@@ -1,9 +1,11 @@
 /**
- * Next.js Edge Middleware — Server-side route guards
- * Reads JWT from cookie or Authorization header, enforces role-based access,
+ * Next.js 16 Proxy — Server-side route guards
+ * (Renamed from middleware.ts → proxy.ts per Next.js 16 convention)
+ *
+ * Reads JWT from cookie, enforces role-based access,
  * redirects unauthorized users before the page renders.
  *
- * Runs on the Edge runtime (no Node.js APIs).
+ * Runs on the Node.js runtime (Next.js 16+).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -25,7 +27,7 @@ const PUBLIC_PREFIXES = [
   "/api",
 ];
 
-// ── Minimal JWT decode (no verification — Edge runtime) ───────────
+// ── Minimal JWT decode (no verification — proxy runtime) ──────────
 // We only need the payload claims for routing decisions.
 // Actual signature verification happens on the backend for every API call.
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -35,14 +37,14 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
     // Base64url → Base64 → JSON
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded  = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const json    = atob(padded);
+    const json    = Buffer.from(padded, "base64").toString("utf-8");
     return JSON.parse(json);
   } catch {
     return null;
   }
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // ── Skip public routes ─────────────────────────────────────────
@@ -56,14 +58,12 @@ export function middleware(req: NextRequest) {
 
   // ── Extract token from cookie ──────────────────────────────────
   // The frontend stores the token in localStorage/sessionStorage (client-side only).
-  // For Edge middleware we read a `fitzone_token` cookie if set.
-  // If no cookie is present we redirect to /login — the client-side AuthContext
-  // will handle the case where the user IS logged in (sessionStorage token).
+  // For proxy we read a `fitzone_token` cookie if set.
+  // If no cookie is present, let the client-side RoleGuard handle it
+  // (avoids false redirects when token is only in sessionStorage).
   const tokenCookie = req.cookies.get("fitzone_token")?.value;
 
   if (!tokenCookie) {
-    // No cookie — let the client-side RoleGuard handle it
-    // (avoids false redirects when token is only in sessionStorage)
     return NextResponse.next();
   }
 

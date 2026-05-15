@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -21,7 +21,8 @@ const DEMO_CARDS = [
   { role: "member",      email: "user@fitzone.in",       password: "user@123",  label: "Member",      grad: "from-emerald-600 to-teal-700",  badge: "Gym Member",     badgeCls: "bg-emerald-100 text-emerald-700", icon: Users },
 ];
 
-export default function LoginPage() {
+// ── Inner component that uses useSearchParams (must be inside Suspense) ──
+function LoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { loginUser } = useAuth();
@@ -293,5 +294,18 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Default export wraps LoginForm in Suspense (required for useSearchParams) ──
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-8 h-8 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
