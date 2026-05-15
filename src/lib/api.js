@@ -205,6 +205,7 @@ export const authAPI = {
   login:           (email, password) => api.post("/auth/login", { email, password }),
   getMe:           ()                => api.get("/auth/me"),
   logout:          ()                => api.post("/auth/logout", {}),
+  getPublicGyms:   ()                => api.get("/auth/gyms-public"),
   refreshToken:    ()                => api.post("/auth/refresh", {
     refreshToken: typeof window !== "undefined" ? localStorage.getItem("fitzone_refresh") : null,
   }),
