@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   Dumbbell, Menu, X, MapPin, Phone, Mail,
   ChevronDown, ChevronRight, LogOut, User, Settings,
-  Award, CreditCard, Video, Bell, QrCode,
+  Award, CreditCard, Video, Bell, QrCode, AlertTriangle,
 } from "lucide-react";
 import { notificationAPI, liveClassAPI } from "@/lib/api";
 import { FaFacebook, FaInstagram, FaTwitter, FaYoutube } from "react-icons/fa";
@@ -183,6 +183,7 @@ export default function WebsiteLayout({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [upcomingClasses, setUpcomingClasses] = useState([]);
   const [userBookings,    setUserBookings]    = useState([]); // classes user has booked
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const profileRef = useRef(null);
   const notifRef   = useRef(null);
   const zoomRef    = useRef(null);
@@ -191,6 +192,9 @@ export default function WebsiteLayout({ children }) {
     setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", onScroll);
+    // Restore banner dismissal from sessionStorage
+    const dismissed = window.sessionStorage?.getItem("fitzone_expiry_banner_dismissed");
+    if (dismissed) setBannerDismissed(true);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -313,6 +317,25 @@ export default function WebsiteLayout({ children }) {
   };
 
   const gymName = getGymName();
+
+  // ── Plan expiry banner logic ───────────────────────────────────
+  const handleDismissBanner = () => {
+    setBannerDismissed(true);
+    window.sessionStorage?.setItem("fitzone_expiry_banner_dismissed", "1");
+  };
+
+  let expiryBanner = null;
+  if (mounted && loaded && user?.role === "member" && user?.planExpiry && !bannerDismissed) {
+    const now        = Date.now();
+    const expiry     = new Date(user.planExpiry).getTime();
+    const daysLeft   = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft <= 0) {
+      expiryBanner = { type: "expired", daysLeft: 0 };
+    } else if (daysLeft <= 14) {
+      expiryBanner = { type: "expiring", daysLeft };
+    }
+  }
 
   return (
     <div className="bg-white min-h-screen flex flex-col">
@@ -841,6 +864,34 @@ export default function WebsiteLayout({ children }) {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── PLAN EXPIRY BANNER ── */}
+      {expiryBanner && (
+        <div className={`fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-2.5 text-sm font-semibold ${
+          expiryBanner.type === "expired"
+            ? "bg-red-600 text-white"
+            : "bg-amber-500 text-white"
+        }`} style={{ marginTop: scrolled ? "52px" : "64px" }}>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <AlertTriangle size={15} className="flex-shrink-0" />
+            <span className="truncate">
+              {expiryBanner.type === "expired"
+                ? "Your plan has expired — "
+                : `Your plan expires in ${expiryBanner.daysLeft} day${expiryBanner.daysLeft !== 1 ? "s" : ""} — `}
+              <Link href="/membership" className="underline font-bold hover:opacity-80">
+                Renew Now
+              </Link>
+            </span>
+          </div>
+          <button
+            onClick={handleDismissBanner}
+            className="ml-3 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+            aria-label="Dismiss banner"
+          >
+            <X size={13} />
+          </button>
         </div>
       )}
 

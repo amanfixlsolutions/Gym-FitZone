@@ -199,6 +199,7 @@ export const gymAPI = {
 export const memberAPI = {
   getAll:   (params = {}) => api.get(`/members?${new URLSearchParams(params)}`),
   getOne:   (id)          => api.get(`/members/${id}`),
+  getSelf:  ()            => api.get("/members/self"),
   create:   (data)        => api.post("/members", data),
   update:   (id, data)    => api.put(`/members/${id}`, data),
   delete:   (id)          => api.delete(`/members/${id}`),

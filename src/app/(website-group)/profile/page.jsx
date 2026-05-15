@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone, Calendar, MapPin, Edit2, Check, X, Loader2, Shield, CreditCard, Clock } from "lucide-react";
-import { authAPI } from "@/lib/api";
+import { User, Mail, Phone, Calendar, MapPin, Edit2, Check, X, Loader2, Shield, CreditCard, Clock, QrCode } from "lucide-react";
+import { authAPI, memberAPI } from "@/lib/api";
 import { showSuccess, showError } from "@/lib/toast";
+import MemberQRCode from "@/components/MemberQRCode";
 
 const BG = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80";
 
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [form,    setForm]    = useState({ name: "", phone: "" });
+  const [memberRecord, setMemberRecord] = useState(null);
 
   useEffect(() => {
     if (loaded && !user) router.push("/login");
@@ -22,6 +24,24 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) setForm({ name: user.name || "", phone: user.phone || "" });
+  }, [user]);
+
+  // Fetch member record for QR code (member role only)
+  useEffect(() => {
+    if (!user || user.role !== "member") return;
+    const fetchMember = async () => {
+      try {
+        const res = await memberAPI.getSelf();
+        if (res?.data) { setMemberRecord(res.data); return; }
+      } catch (_) { /* fall through */ }
+      try {
+        const res = await memberAPI.getAll({ search: user.email, limit: 1 });
+        const members = res?.data || [];
+        const match = members.find(m => m.email?.toLowerCase() === user.email?.toLowerCase());
+        if (match) setMemberRecord(match);
+      } catch (_) { /* silent */ }
+    };
+    fetchMember();
   }, [user]);
 
   // ── Save profile (name + phone via a dedicated update endpoint) ──
@@ -172,6 +192,26 @@ export default function ProfilePage() {
               <div className="bg-amber-50 rounded-xl p-4">
                 <p className="text-sm font-semibold text-gray-800">{user.gymName || "—"}</p>
                 {user.gymCity && <p className="text-xs text-gray-500 mt-0.5">📍 {user.gymCity}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* My QR Code — member role only */}
+          {user.role === "member" && memberRecord?._id && (
+            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 mt-5">
+              <h2 className="text-base font-bold text-gray-800 mb-5 flex items-center gap-2">
+                <QrCode size={16} className="text-amber-500" /> My QR Code
+              </h2>
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col items-center">
+                <MemberQRCode
+                  memberId={memberRecord._id}
+                  memberName={user.name}
+                  planName={user.plan || memberRecord.planName}
+                  expiryDate={user.planExpiry || memberRecord.expiryDate}
+                />
+                <p className="text-xs text-gray-400 mt-4 text-center">
+                  Show this QR code at the gym entrance for quick check-in
+                </p>
               </div>
             </div>
           )}

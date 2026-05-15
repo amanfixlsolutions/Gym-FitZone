@@ -1,27 +1,52 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { Award, Star, Zap, Target, TrendingUp, Calendar, Loader2, Trophy } from "lucide-react";
+import { Award, Loader2 } from "lucide-react";
+import { memberAPI } from "@/lib/api";
+import AchievementBadges from "@/components/AchievementBadges";
 
 const BG = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1920&q=80";
-
-const ACHIEVEMENTS = [
-  { icon: Star,       title: "First Workout",     desc: "Completed your first gym session",        color: "bg-amber-100 text-amber-600",    earned: true  },
-  { icon: Zap,        title: "7-Day Streak",       desc: "Visited the gym 7 days in a row",         color: "bg-blue-100 text-blue-600",      earned: false },
-  { icon: Target,     title: "Goal Setter",        desc: "Set your first fitness goal",             color: "bg-emerald-100 text-emerald-600",earned: true  },
-  { icon: TrendingUp, title: "Progress Maker",     desc: "Logged 10+ check-ins",                    color: "bg-purple-100 text-purple-600",  earned: false },
-  { icon: Calendar,   title: "Monthly Champion",   desc: "Attended classes every week for a month", color: "bg-rose-100 text-rose-600",      earned: false },
-  { icon: Trophy,     title: "Elite Member",       desc: "Active member for 6+ months",             color: "bg-orange-100 text-orange-600",  earned: false },
-];
 
 export default function AchievementsPage() {
   const { user, loaded } = useAuth();
   const router = useRouter();
 
+  const [memberData, setMemberData] = useState(null);
+  const [fetching,   setFetching]   = useState(false);
+
   useEffect(() => {
     if (loaded && !user) router.push("/login");
   }, [loaded, user, router]);
+
+  // Fetch member record to get achievements, totalCheckins, joinDate
+  useEffect(() => {
+    if (!user) return;
+    const fetchMember = async () => {
+      setFetching(true);
+      try {
+        // Try /members/self first (Task 7.10 endpoint)
+        const res = await memberAPI.getSelf();
+        if (res?.data) {
+          setMemberData(res.data);
+          return;
+        }
+      } catch (_) { /* fall through */ }
+
+      // Fallback: search by email
+      try {
+        const res = await memberAPI.getAll({ search: user.email, limit: 1 });
+        const members = res?.data || [];
+        const match = members.find(
+          m => m.email?.toLowerCase() === user.email?.toLowerCase()
+        );
+        if (match) setMemberData(match);
+      } catch (_) { /* silent */ }
+
+      setFetching(false);
+    };
+    fetchMember();
+  }, [user]);
 
   if (!loaded || !user) {
     return (
@@ -31,7 +56,12 @@ export default function AchievementsPage() {
     );
   }
 
-  const earned = ACHIEVEMENTS.filter(a => a.earned).length;
+  const achievements  = memberData?.achievements  || [];
+  const totalCheckins = memberData?.totalCheckins  || 0;
+  const joinDate      = memberData?.joinDate       || user?.createdAt || null;
+
+  const earnedCount = achievements.length;
+  const totalCount  = 6; // total badge definitions
 
   return (
     <div className="min-h-screen pb-12" style={{ backgroundImage: `url('${BG}')`, backgroundSize: "cover", backgroundPosition: "center" }}>
@@ -46,43 +76,42 @@ export default function AchievementsPage() {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black">My Achievements</h1>
-                <p className="text-amber-100 text-sm mt-0.5">{earned} of {ACHIEVEMENTS.length} unlocked</p>
+                <p className="text-amber-100 text-sm mt-0.5">
+                  {fetching ? "Loading…" : `${earnedCount} of ${totalCount} unlocked`}
+                </p>
               </div>
             </div>
-            <div className="mt-4">
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white rounded-full transition-all duration-500"
-                  style={{ width: `${(earned / ACHIEVEMENTS.length) * 100}%` }} />
-              </div>
-              <p className="text-xs text-amber-100 mt-1">{Math.round((earned / ACHIEVEMENTS.length) * 100)}% complete</p>
-            </div>
-          </div>
-
-          {/* Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {ACHIEVEMENTS.map((a, i) => (
-              <div key={i} className={`bg-white rounded-2xl p-4 sm:p-5 shadow-xl border-2 transition-all ${
-                a.earned ? "border-amber-200 hover:shadow-2xl hover:scale-[1.02]" : "border-gray-100 opacity-60"
-              }`}>
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${a.color}`}>
-                    <a.icon size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold text-gray-800">{a.title}</h3>
-                      {a.earned && (
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">✓ Earned</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{a.desc}</p>
-                  </div>
+            {!fetching && (
+              <div className="mt-4">
+                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((earnedCount / totalCount) * 100)}%` }}
+                  />
                 </div>
+                <p className="text-xs text-amber-100 mt-1">
+                  {Math.round((earnedCount / totalCount) * 100)}% complete
+                </p>
               </div>
-            ))}
+            )}
           </div>
 
-          <p className="text-center text-xs text-white/50 mt-6">More achievements coming soon!</p>
+          {/* Loading state */}
+          {fetching ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+            </div>
+          ) : (
+            <AchievementBadges
+              achievements={achievements}
+              totalCheckins={totalCheckins}
+              joinDate={joinDate}
+            />
+          )}
+
+          <p className="text-center text-xs text-white/50 mt-6">
+            Check in regularly to unlock more badges!
+          </p>
         </div>
       </div>
     </div>
