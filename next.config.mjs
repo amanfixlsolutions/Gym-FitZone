@@ -31,12 +31,16 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com https://us04web.zoom.us",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
+              // Razorpay needs: checkout.razorpay.com (checkout script),
+              // cdn.razorpay.com (risk-detection bundle), *.razorpay.com (all subdomains)
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com https://*.razorpay.com https://js.stripe.com https://us04web.zoom.us",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com",
+              "font-src 'self' https://fonts.gstatic.com https://*.razorpay.com",
               "img-src 'self' data: blob: https: http://localhost:5000",
-              "connect-src 'self' https://fitzone-backend-vis3.onrender.com wss://fitzone-backend-vis3.onrender.com https://api.razorpay.com https://api.stripe.com",
-              "frame-src https://checkout.razorpay.com https://js.stripe.com https://us04web.zoom.us",
+              // Razorpay makes XHR calls to lumberjack.razorpay.com, api.razorpay.com, etc.
+              "connect-src 'self' https://fitzone-backend-vis3.onrender.com wss://fitzone-backend-vis3.onrender.com https://*.razorpay.com https://api.razorpay.com https://lumberjack.razorpay.com https://api.stripe.com",
+              // Razorpay checkout opens in an iframe from checkout.razorpay.com
+              "frame-src https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://js.stripe.com https://us04web.zoom.us",
               "media-src 'self' blob:",
               "worker-src 'self' blob:",
             ].join("; "),

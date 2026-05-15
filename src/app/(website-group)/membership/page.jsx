@@ -114,15 +114,14 @@ export default function MembershipPage() {
         return;
       }
 
-      // Find member record
+      // Find member record — use /members/self for logged-in member
       let memberId = null;
       try {
-        const memberRes = await memberAPI.getAll({ limit: 1 });
-        // Try to find member by email
-        const members = memberRes.data || [];
-        const myMember = members.find(m => m.email === user.email);
-        if (myMember) memberId = myMember._id;
-      } catch { /* member may not exist yet */ }
+        const selfRes = await memberAPI.getSelf();
+        if (selfRes?.data?._id) {
+          memberId = selfRes.data._id;
+        }
+      } catch { /* member may not exist yet — will be auto-created on payment */ }
 
       // Create Razorpay order
       const orderRes = await paymentAPI.createRazorpayOrder({
