@@ -76,9 +76,53 @@ const refreshAccessToken = async () => {
   return data.accessToken;
 };
 
+// ── gymId injection helper ─────────────────────────────────────────
+// Automatically appends gymId as a query parameter for gym-owner requests.
+// This ensures all gym-owner API calls are scoped to their tenant.
+const injectGymId = (endpoint) => {
+  if (typeof window === "undefined") return endpoint;
+  try {
+    const userJson = window.sessionStorage?.getItem("fitzone_user") ||
+                     window.localStorage?.getItem("fitzone_user");
+    if (!userJson) return endpoint;
+    const user = JSON.parse(userJson);
+    if (user?.role !== "gym-owner" || !user?.gym) return endpoint;
+    const gymId = typeof user.gym === "object" ? user.gym._id : user.gym;
+    if (!gymId) return endpoint;
+    // Only inject for gym-owner scoped endpoints (not auth, super-admin, billing)
+    const skipPrefixes = ["/auth", "/super-admin", "/billing", "/gyms/stats", "/gyms/create"];
+    if (skipPrefixes.some(p => endpoint.startsWith(p))) return endpoint;
+    const sep = endpoint.includes("?") ? "&" : "?";
+    // Don't double-inject
+    if (endpoint.includes("gymId=")) return endpoint;
+    return `${endpoint}${sep}gymId=${gymId}`;
+  } catch {
+    return endpoint;
+  }
+};
+
+// ── Session expiry handler ─────────────────────────────────────────
+// Clears all stored credentials and redirects to /login with a message.
+export const handleSessionExpiry = (reason = "session_expired") => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage?.removeItem("fitzone_token");
+  window.sessionStorage?.removeItem("fitzone_user");
+  window.localStorage?.removeItem("fitzone_token");
+  window.localStorage?.removeItem("fitzone_refresh");
+  window.localStorage?.removeItem("fitzone_user");
+  // Redirect to login with reason param so login page can show toast
+  const current = window.location.pathname;
+  const skip = ["/login", "/signup", "/checkin"];
+  if (!skip.some(p => current.startsWith(p))) {
+    window.location.href = `/login?reason=${reason}&redirect=${encodeURIComponent(current)}`;
+  }
+};
+
 // ── Core fetch wrapper with auto token refresh ─────────────────────
 const request = async (endpoint, options = {}, _retry = false) => {
   const token = getToken();
+  // Inject gymId for gym-owner scoped requests
+  endpoint = injectGymId(endpoint);
 
   const config = {
     credentials: "include",
@@ -121,15 +165,9 @@ const request = async (endpoint, options = {}, _retry = false) => {
     } catch (err) {
       processQueue(err, null);
       isRefreshing = false;
-      // Refresh failed — clear tokens silently, let user stay on page
-      if (typeof window !== "undefined") {
-        window.sessionStorage?.removeItem("fitzone_token");
-        window.sessionStorage?.removeItem("fitzone_user");
-        window.localStorage?.removeItem("fitzone_token");
-        window.localStorage?.removeItem("fitzone_refresh");
-        window.localStorage?.removeItem("fitzone_user");
-      }
-      // Don't throw "Session expired" — just return empty data
+      // Refresh failed — clear credentials and redirect to login
+      handleSessionExpiry("session_expired");
+      // Return empty data so callers don't crash
       return { success: false, data: [], message: "session_expired" };
     }
   }

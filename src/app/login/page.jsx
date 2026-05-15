@@ -1,12 +1,13 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Dumbbell, Eye, EyeOff, Lock, Mail, ArrowRight,
   Zap, ShieldCheck, Building2, Users, UserPlus,
 } from "lucide-react";
 import Link from "next/link";
+import { showError, showInfo } from "@/lib/toast";
 
 const ROLE_REDIRECT = {
   "super-admin": "/super-admin",
@@ -21,7 +22,8 @@ const DEMO_CARDS = [
 ];
 
 export default function LoginPage() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const { loginUser } = useAuth();
 
   const [email,        setEmail]        = useState("");
@@ -31,9 +33,31 @@ export default function LoginPage() {
   const [loading,      setLoading]      = useState(false);
   const [quickLoading, setQuickLoading] = useState(null);
 
+  // ── Show toast for redirect reasons (session expired, unauthorized) ──
+  useEffect(() => {
+    const reason   = searchParams?.get("reason");
+    const redirect = searchParams?.get("redirect");
+    if (reason === "session_expired") {
+      showError("Your session has expired. Please log in again.");
+    } else if (reason === "unauthorized") {
+      showError("You are not authorized to access that page.");
+    } else if (reason === "invalid_token") {
+      showError("Invalid session. Please log in again.");
+    }
+    if (redirect) {
+      showInfo(`You'll be redirected to ${redirect} after login.`);
+    }
+  }, [searchParams]);
+
   const doLogin = async (em, pw) => {
     const user = await loginUser(em, pw);
-    router.push(ROLE_REDIRECT[user.role] || "/");
+    // Redirect to original destination if provided
+    const redirect = searchParams?.get("redirect");
+    if (redirect && !redirect.startsWith("/login")) {
+      router.push(redirect);
+    } else {
+      router.push(ROLE_REDIRECT[user.role] || "/");
+    }
   };
 
   const handleLogin = async (e) => {
