@@ -77,8 +77,7 @@ const refreshAccessToken = async () => {
 };
 
 // ── gymId injection helper ─────────────────────────────────────────
-// Automatically appends gymId as a query parameter for gym-owner requests.
-// This ensures all gym-owner API calls are scoped to their tenant.
+// Appends gymId for gym-owner and member requests so APIs stay tenant-scoped.
 const injectGymId = (endpoint) => {
   if (typeof window === "undefined") return endpoint;
   try {
@@ -86,14 +85,13 @@ const injectGymId = (endpoint) => {
                      window.localStorage?.getItem("fitzone_user");
     if (!userJson) return endpoint;
     const user = JSON.parse(userJson);
-    if (user?.role !== "gym-owner" || !user?.gym) return endpoint;
-    const gymId = typeof user.gym === "object" ? user.gym._id : user.gym;
+    const scopedRoles = ["gym-owner", "member"];
+    if (!scopedRoles.includes(user?.role)) return endpoint;
+    const gymId = user.gymId || (typeof user.gym === "object" ? user.gym._id : user.gym);
     if (!gymId) return endpoint;
-    // Only inject for gym-owner scoped endpoints (not auth, super-admin, billing)
-    const skipPrefixes = ["/auth", "/super-admin", "/billing", "/gyms/stats", "/gyms/create"];
+    const skipPrefixes = ["/auth", "/super-admin", "/billing", "/gyms/stats", "/gyms/create", "/auth/gyms-public"];
     if (skipPrefixes.some(p => endpoint.startsWith(p))) return endpoint;
     const sep = endpoint.includes("?") ? "&" : "?";
-    // Don't double-inject
     if (endpoint.includes("gymId=")) return endpoint;
     return `${endpoint}${sep}gymId=${gymId}`;
   } catch {
@@ -251,7 +249,19 @@ export const memberAPI = {
 // ── Trainer APIs ───────────────────────────────────────────────────
 export const trainerAPI = {
   getAll:   (params = {}) => api.get(`/trainers?${new URLSearchParams(params)}`),
-  getPublic:(params = {}) => api.get(`/trainers/public?${new URLSearchParams(params)}`),
+  // getPublic: passes gymId automatically if user is logged in (tenant-scoped)
+  getPublic:(params = {}) => {
+    const userJson = typeof window !== "undefined"
+      ? (window.sessionStorage?.getItem("fitzone_user") || window.localStorage?.getItem("fitzone_user"))
+      : null;
+    if (userJson) {
+      try {
+        const u = JSON.parse(userJson);
+        if (u?.gym && !params.gymId) params = { ...params, gymId: typeof u.gym === "object" ? u.gym._id : u.gym };
+      } catch { /* silent */ }
+    }
+    return api.get(`/trainers/public?${new URLSearchParams(params)}`);
+  },
   getOne:   (id)          => api.get(`/trainers/${id}`),
   create:   (data)        => api.post("/trainers", data),
   update:   (id, data)    => api.put(`/trainers/${id}`, data),
@@ -262,7 +272,19 @@ export const trainerAPI = {
 // ── Class APIs ─────────────────────────────────────────────────────
 export const classAPI = {
   getAll:    (params = {}) => api.get(`/classes?${new URLSearchParams(params)}`),
-  getPublic: (params = {}) => api.get(`/classes/public?${new URLSearchParams(params)}`),
+  // getPublic: passes gymId automatically if user is logged in (tenant-scoped)
+  getPublic: (params = {}) => {
+    const userJson = typeof window !== "undefined"
+      ? (window.sessionStorage?.getItem("fitzone_user") || window.localStorage?.getItem("fitzone_user"))
+      : null;
+    if (userJson) {
+      try {
+        const u = JSON.parse(userJson);
+        if (u?.gym && !params.gymId) params = { ...params, gymId: typeof u.gym === "object" ? u.gym._id : u.gym };
+      } catch { /* silent */ }
+    }
+    return api.get(`/classes/public?${new URLSearchParams(params)}`);
+  },
   getOne:    (id)          => api.get(`/classes/${id}`),
   getToday:  ()            => api.get("/classes/today"),
   create:    (data)        => api.post("/classes", data),

@@ -480,16 +480,29 @@ export default function LiveClassesPage() {
                     )}
 
                     {/* Action button */}
-                    {isLive && lc.zoomJoinUrl ? (
-                      // Class is live — show Join Now directly
-                      <a
-                        href={lc.zoomJoinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    {isLive && myBookings.some(b => b.liveClass?._id === lc._id && b.bookingStatus === "confirmed") ? (
+                      // Class is live AND user has a confirmed booking — show Join button
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await liveClassAPI.join(lc._id);
+                            if (res.joinUrl) window.open(res.joinUrl, "_blank");
+                            else setError("Zoom link not available yet.");
+                          } catch (err) {
+                            setError(err.message || "Failed to get Zoom link.");
+                          }
+                        }}
                         className="block w-full py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-bold rounded-xl text-center hover:shadow-lg transition-all flex items-center justify-center gap-2"
                       >
                         <Video size={14} /> Join Live Now →
-                      </a>
+                      </button>
+                    ) : isLive && !user ? (
+                      <button
+                        onClick={() => router.push("/login")}
+                        className="w-full py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        <Video size={14} /> Login to Join →
+                      </button>
                     ) : isFull ? (
                       <button disabled className="w-full py-2.5 bg-gray-100 text-gray-400 text-sm font-semibold rounded-xl cursor-not-allowed">
                         Class Full
